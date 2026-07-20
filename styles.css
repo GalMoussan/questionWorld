@@ -673,11 +673,11 @@ body {
   color: var(--star);
 }
 
-/* Remembrance sheet (דף עזר) locator */
+/* Remembrance sheet (דף עזר) locator + visual highlight */
 .sheet-ref {
   display: flex;
-  gap: 0.9rem;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.85rem;
   padding: 1.1rem 1.2rem;
   margin-bottom: 1.5rem;
   border-radius: var(--radius);
@@ -688,6 +688,12 @@ body {
 
 .sheet-ref[hidden] {
   display: none !important;
+}
+
+.sheet-ref-header {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
 }
 
 .sheet-ref-icon {
@@ -723,7 +729,6 @@ body {
   font-size: 0.92rem;
   color: var(--muted);
   line-height: 1.45;
-  margin-bottom: 0.65rem;
 }
 
 .sheet-ref-hint[hidden] {
@@ -740,6 +745,7 @@ body {
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 0.15s, color 0.15s;
+  align-self: flex-start;
 }
 
 .sheet-ref-link:hover,
@@ -747,6 +753,156 @@ body {
   color: #fff;
   border-bottom-color: var(--cyan);
   outline: none;
+}
+
+/* Embedded page viewer with highlight */
+.sheet-viewer {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  background: #12121a;
+}
+
+.sheet-viewer[hidden] {
+  display: none !important;
+}
+
+.sheet-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  background: rgba(0, 0, 0, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sheet-viewer-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.02em;
+}
+
+.sheet-zoom-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.08);
+  color: var(--cyan);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.sheet-zoom-btn:hover {
+  background: rgba(0, 240, 255, 0.18);
+}
+
+.sheet-viewport {
+  position: relative;
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #0a0a10;
+  /* Force LTR so page image isn't mirrored in RTL layout */
+  direction: ltr;
+}
+
+.sheet-page {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+}
+
+.sheet-page img {
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+}
+
+/* Darken everything outside the answer region */
+.sheet-dim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* hole cut via CSS mask set in JS */
+  background: rgba(4, 6, 14, 0.62);
+  transition: opacity 0.25s ease;
+}
+
+.sheet-highlight {
+  position: absolute;
+  pointer-events: none;
+  border: 2.5px solid #00f0ff;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px rgba(0, 240, 255, 0.35),
+    0 0 22px rgba(0, 240, 255, 0.55),
+    inset 0 0 28px rgba(0, 240, 255, 0.12);
+  background: rgba(0, 240, 255, 0.08);
+  animation: highlightPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(0, 240, 255, 0.35),
+      0 0 18px rgba(0, 240, 255, 0.45),
+      inset 0 0 24px rgba(0, 240, 255, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(0, 240, 255, 0.55),
+      0 0 32px rgba(0, 240, 255, 0.75),
+      inset 0 0 36px rgba(0, 240, 255, 0.16);
+  }
+}
+
+/* Fullscreen lightbox for closer reading */
+.sheet-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(4, 6, 14, 0.92);
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.sheet-lightbox[hidden] {
+  display: none !important;
+}
+
+.sheet-lightbox-close {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.sheet-lightbox-inner {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  direction: ltr;
+  padding: 3.5rem 0.75rem 1.25rem;
+}
+
+.sheet-lightbox-inner .sheet-page {
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .explain-actions {

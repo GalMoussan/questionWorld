@@ -53,9 +53,24 @@ D. Option 4
 **Explanation:** 2–4 sentences why correct + why others are wrong.
 ```
 
-After each correct answer, the explain screen shows **איפה בדף העזר?** with the page number, section title, a scan hint, and a link that opens `assets/remembrance-sheet.pdf#page=N`.
+After each correct answer, the explain screen shows **איפה בדף העזר?** with:
 
-Edit locations in `tools/sheet-refs.mjs` (source of truth), then re-run rebuild.
+- page number + section title + scan hint
+- a **live page image** of the דף עזר with the answer region **highlighted** (dimmed surroundings + cyan box)
+- expand (fullscreen) and open full PDF links
+
+### Regenerating page highlights
+
+```bash
+python3 tools/build-sheet-highlights.py
+```
+
+This reads `assets/remembrance-sheet.pdf`, finds text anchors per question, writes:
+
+- `assets/sheet/page-1.png` … `page-4.png`
+- `assets/sheet/highlights.json` (normalized highlight rectangles)
+
+Edit section labels in `tools/sheet-refs.mjs` and pixel anchors in `tools/build-sheet-highlights.py`.
 
 Letter of the correct answer in the file does **not** matter long-term — the rebuild + runtime engines re-place every correct text onto an anti-pattern A/B/C/D curve.
 

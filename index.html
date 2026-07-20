@@ -107,15 +107,36 @@
         <p id="explain-text"></p>
       </div>
       <div class="sheet-ref" id="sheet-ref" hidden>
-        <div class="sheet-ref-icon" aria-hidden="true">📄</div>
-        <div class="sheet-ref-body">
-          <div class="sheet-ref-label">איפה בדף העזר?</div>
-          <div class="sheet-ref-title" id="sheet-ref-title"></div>
-          <div class="sheet-ref-hint" id="sheet-ref-hint"></div>
-          <a class="sheet-ref-link" id="sheet-ref-link" href="assets/remembrance-sheet.pdf" target="_blank" rel="noopener">
-            פתח דף עזר בעמוד הזה →
-          </a>
+        <div class="sheet-ref-header">
+          <div class="sheet-ref-icon" aria-hidden="true">📄</div>
+          <div class="sheet-ref-body">
+            <div class="sheet-ref-label">איפה בדף העזר?</div>
+            <div class="sheet-ref-title" id="sheet-ref-title"></div>
+            <div class="sheet-ref-hint" id="sheet-ref-hint"></div>
+          </div>
         </div>
+        <div class="sheet-viewer" id="sheet-viewer" hidden>
+          <div class="sheet-viewer-toolbar">
+            <span class="sheet-viewer-label">האזור המסומן = התשובה בדף</span>
+            <button type="button" class="sheet-zoom-btn" id="btn-sheet-expand" title="הגדל תצוגה">⤢</button>
+          </div>
+          <div class="sheet-viewport" id="sheet-viewport">
+            <div class="sheet-page" id="sheet-page">
+              <img id="sheet-page-img" alt="דף עזר" draggable="false" />
+              <div class="sheet-dim" id="sheet-dim" aria-hidden="true"></div>
+              <div class="sheet-highlight" id="sheet-highlight" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+        <a class="sheet-ref-link" id="sheet-ref-link" href="assets/remembrance-sheet.pdf" target="_blank" rel="noopener">
+          פתח PDF מלא →
+        </a>
+      </div>
+
+      <!-- Fullscreen sheet overlay -->
+      <div class="sheet-lightbox" id="sheet-lightbox" hidden>
+        <button type="button" class="sheet-lightbox-close" id="btn-sheet-close" aria-label="סגור">✕</button>
+        <div class="sheet-lightbox-inner" id="sheet-lightbox-inner"></div>
       </div>
       <div class="explain-actions">
         <button type="button" id="btn-got-it" class="btn btn-primary">✓ הבנתי</button>

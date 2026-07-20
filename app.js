@@ -63,6 +63,16 @@
     sheetRefTitle: $("#sheet-ref-title"),
     sheetRefHint: $("#sheet-ref-hint"),
     sheetRefLink: $("#sheet-ref-link"),
+    sheetViewer: $("#sheet-viewer"),
+    sheetViewport: $("#sheet-viewport"),
+    sheetPage: $("#sheet-page"),
+    sheetPageImg: $("#sheet-page-img"),
+    sheetDim: $("#sheet-dim"),
+    sheetHighlight: $("#sheet-highlight"),
+    btnSheetExpand: $("#btn-sheet-expand"),
+    sheetLightbox: $("#sheet-lightbox"),
+    sheetLightboxInner: $("#sheet-lightbox-inner"),
+    btnSheetClose: $("#btn-sheet-close"),
     btnGotIt: $("#btn-got-it"),
     btnConfused: $("#btn-confused"),
     confetti: $("#confetti-canvas"),
@@ -71,6 +81,12 @@
   };
 
   const SHEET_PDF = "assets/remembrance-sheet.pdf";
+  const HIGHLIGHTS_URL = "assets/sheet/highlights.json";
+
+  /** @type {{ pages?: object, highlights?: Record<string, object> } | null} */
+  let sheetHighlights = null;
+  let sheetHighlightsPromise = null;
+  let currentHighlight = null;
 
   // ── Screens ────────────────────────────────────────────
   function showScreen(name) {
@@ -820,19 +836,41 @@
       </div>
     `;
     els.explainText.textContent = display.explanation;
-    renderSheetRef(bank.sheetRef || display.sheetRef);
+    renderSheetRef(bank.sheetRef || display.sheetRef, bank.id);
     lockKnowledgeBlock();
     saveProgress();
+  }
+
+  function ensureSheetHighlights() {
+    if (sheetHighlights) return Promise.resolve(sheetHighlights);
+    if (sheetHighlightsPromise) return sheetHighlightsPromise;
+    sheetHighlightsPromise = fetch(HIGHLIGHTS_URL)
+      .then((r) => {
+        if (!r.ok) throw new Error("highlights missing");
+        return r.json();
+      })
+      .then((data) => {
+        sheetHighlights = data;
+        return data;
+      })
+      .catch((err) => {
+        console.warn("[QuizMaster] sheet highlights unavailable", err);
+        sheetHighlights = { highlights: {}, pages: {} };
+        return sheetHighlights;
+      });
+    return sheetHighlightsPromise;
   }
 
   /**
    * Show where this answer appears on the remembrance sheet (דף עזר).
    * sheetRef: { page, section, hint? }
+   * questionId: bank question id for pixel highlight lookup
    */
-  function renderSheetRef(sheetRef) {
+  function renderSheetRef(sheetRef, questionId) {
     if (!els.sheetRef) return;
     if (!sheetRef || !sheetRef.page) {
       els.sheetRef.hidden = true;
+      currentHighlight = null;
       return;
     }
     els.sheetRef.hidden = false;
@@ -847,10 +885,117 @@
       els.sheetRefHint.textContent = "";
     }
     if (els.sheetRefLink) {
-      // #page=N is honored by most browser PDF viewers
       els.sheetRefLink.href = `${SHEET_PDF}#page=${page}`;
-      els.sheetRefLink.textContent = `פתח דף עזר — עמוד ${page} →`;
+      els.sheetRefLink.textContent = `פתח PDF מלא — עמוד ${page} →`;
     }
+
+    // Visual highlight on page image
+    ensureSheetHighlights().then((data) => {
+      const hl = data.highlights && data.highlights[String(questionId)];
+      if (!hl || !els.sheetViewer) {
+        if (els.sheetViewer) els.sheetViewer.hidden = true;
+        currentHighlight = null;
+        return;
+      }
+      currentHighlight = { ...hl, questionId, section };
+      showSheetHighlight(hl);
+    });
+  }
+
+  function showSheetHighlight(hl) {
+    if (!els.sheetViewer || !els.sheetPageImg || !els.sheetHighlight) return;
+    els.sheetViewer.hidden = false;
+
+    const imgSrc = `assets/sheet/page-${hl.page}.png`;
+    const applyLayout = () => {
+      // Percent-based position matches normalized PDF coords
+      const style = {
+        left: `${hl.x * 100}%`,
+        top: `${hl.y * 100}%`,
+        width: `${hl.w * 100}%`,
+        height: `${hl.h * 100}%`,
+      };
+      Object.assign(els.sheetHighlight.style, style);
+
+      // Cut a soft hole in the dim layer so the answer region stays bright
+      if (els.sheetDim) {
+        const top = hl.y * 100;
+        const left = hl.x * 100;
+        const right = (hl.x + hl.w) * 100;
+        const bottom = (hl.y + hl.h) * 100;
+        // 4-rect poly via clip-path: full rect with hole is hard in pure CSS;
+        // use box-shadow punch instead (large shadow = dim, no fill on box)
+        els.sheetDim.style.cssText = `
+          position:absolute; left:${left}%; top:${top}%; width:${hl.w * 100}%; height:${hl.h * 100}%;
+          box-shadow: 0 0 0 9999px rgba(4, 6, 14, 0.62);
+          background: transparent;
+          border-radius: 6px;
+          pointer-events: none;
+        `;
+      }
+
+      // Scroll highlight into view (center-ish)
+      if (els.sheetViewport && els.sheetPage) {
+        const vp = els.sheetViewport;
+        const pageH = els.sheetPage.offsetHeight || 1;
+        const targetY = hl.y * pageH - vp.clientHeight * 0.25;
+        vp.scrollTop = Math.max(0, targetY);
+        vp.scrollLeft = 0;
+      }
+    };
+
+    if (els.sheetPageImg.getAttribute("src") === imgSrc && els.sheetPageImg.complete) {
+      applyLayout();
+    } else {
+      els.sheetPageImg.onload = applyLayout;
+      els.sheetPageImg.src = imgSrc;
+      els.sheetPageImg.alt = `דף עזר — עמוד ${hl.page}`;
+    }
+  }
+
+  function openSheetLightbox() {
+    if (!currentHighlight || !els.sheetLightbox || !els.sheetLightboxInner) return;
+    const hl = currentHighlight;
+    els.sheetLightbox.hidden = false;
+    document.body.style.overflow = "hidden";
+
+    els.sheetLightboxInner.innerHTML = `
+      <div class="sheet-page" id="lightbox-page">
+        <img src="assets/sheet/page-${hl.page}.png" alt="דף עזר עמוד ${hl.page}" style="width:100%;height:auto;display:block;" />
+        <div class="sheet-dim" id="lightbox-dim"></div>
+        <div class="sheet-highlight" id="lightbox-hl"></div>
+      </div>
+    `;
+    const dim = els.sheetLightboxInner.querySelector("#lightbox-dim");
+    const box = els.sheetLightboxInner.querySelector("#lightbox-hl");
+    const page = els.sheetLightboxInner.querySelector("#lightbox-page");
+    Object.assign(box.style, {
+      left: `${hl.x * 100}%`,
+      top: `${hl.y * 100}%`,
+      width: `${hl.w * 100}%`,
+      height: `${hl.h * 100}%`,
+    });
+    dim.style.cssText = `
+      position:absolute; left:${hl.x * 100}%; top:${hl.y * 100}%;
+      width:${hl.w * 100}%; height:${hl.h * 100}%;
+      box-shadow: 0 0 0 9999px rgba(4, 6, 14, 0.62);
+      background: transparent; border-radius: 6px; pointer-events: none;
+    `;
+    // Scroll after image loads
+    const img = els.sheetLightboxInner.querySelector("img");
+    const scrollToHl = () => {
+      const h = page.offsetHeight || 1;
+      els.sheetLightboxInner.scrollTop = Math.max(0, hl.y * h - 80);
+    };
+    if (img.complete) scrollToHl();
+    else img.onload = scrollToHl;
+  }
+
+  function closeSheetLightbox() {
+    if (!els.sheetLightbox) return;
+    els.sheetLightbox.hidden = true;
+    document.body.style.overflow = "";
+    if (els.sheetLightboxInner) els.sheetLightboxInner.innerHTML = "";
   }
 
   function advance(gotIt) {
@@ -1337,6 +1482,15 @@
   function onKey(e) {
     if (e.target.matches("input, textarea")) return;
 
+    // Sheet lightbox takes priority
+    if (els.sheetLightbox && !els.sheetLightbox.hidden) {
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault();
+        closeSheetLightbox();
+      }
+      return;
+    }
+
     if (state.screen === "landing" && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       startQuiz(false);
@@ -1424,6 +1578,21 @@
 
     els.btnGotIt.addEventListener("click", () => advance(true));
     els.btnConfused.addEventListener("click", () => advance(false));
+
+    els.btnSheetExpand?.addEventListener("click", () => {
+      playClick();
+      openSheetLightbox();
+    });
+    els.btnSheetClose?.addEventListener("click", () => {
+      playClick();
+      closeSheetLightbox();
+    });
+    els.sheetLightbox?.addEventListener("click", (e) => {
+      if (e.target === els.sheetLightbox) closeSheetLightbox();
+    });
+
+    // Prefetch highlight map so first correct answer is snappy
+    ensureSheetHighlights();
 
     $("#btn-export")?.addEventListener("click", exportStudyPlan);
     $("#btn-restart")?.addEventListener("click", () => {
