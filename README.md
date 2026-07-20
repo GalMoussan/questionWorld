@@ -17,6 +17,26 @@ open index.html
 
 3. Click **START THE QUIZ**. Optional: resume from localStorage if you refresh mid-run.
 
+## Deploy to Vercel (mobile)
+
+Static site — no build step.
+
+```bash
+# once: log in (opens browser)
+vercel login
+
+# from project root
+vercel --prod
+```
+
+Or import the GitHub repo at [vercel.com/new](https://vercel.com/new):
+- **Framework Preset:** Other
+- **Root Directory:** `.` (repo root)
+- **Build Command:** leave empty
+- **Output Directory:** `.` (or leave default)
+
+After deploy, open the `*.vercel.app` URL on your phone. On iOS Safari: Share → **Add to Home Screen** for app-like use.
+
 **Files you need:**
 
 | File | Role |
