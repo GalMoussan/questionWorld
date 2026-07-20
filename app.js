@@ -65,11 +65,11 @@
     sheetRefLink: $("#sheet-ref-link"),
     sheetViewer: $("#sheet-viewer"),
     sheetViewport: $("#sheet-viewport"),
-    sheetPage: $("#sheet-page"),
-    sheetPageImg: $("#sheet-page-img"),
-    sheetDim: $("#sheet-dim"),
-    sheetHighlight: $("#sheet-highlight"),
+    sheetPageCanvas: $("#sheet-page-canvas"),
+    sheetCropWrap: $("#sheet-crop-wrap"),
+    sheetCropCanvas: $("#sheet-crop-canvas"),
     btnSheetExpand: $("#btn-sheet-expand"),
+    btnSheetOpenHl: $("#btn-sheet-open-hl"),
     sheetLightbox: $("#sheet-lightbox"),
     sheetLightboxInner: $("#sheet-lightbox-inner"),
     btnSheetClose: $("#btn-sheet-close"),
@@ -87,6 +87,8 @@
   let sheetHighlights = null;
   let sheetHighlightsPromise = null;
   let currentHighlight = null;
+  /** @type {HTMLImageElement | null} */
+  let currentSheetImg = null;
 
   // ── Screens ────────────────────────────────────────────
   function showScreen(name) {
@@ -863,8 +865,7 @@
 
   /**
    * Show where this answer appears on the remembrance sheet (דף עזר).
-   * sheetRef: { page, section, hint? }
-   * questionId: bank question id for pixel highlight lookup
+   * Highlights are painted onto a canvas (NOT inside the raw PDF file).
    */
   function renderSheetRef(sheetRef, questionId) {
     if (!els.sheetRef) return;
@@ -879,77 +880,149 @@
     els.sheetRefTitle.textContent = `עמוד ${page}${section ? " · " + section : ""}`;
     if (sheetRef.hint) {
       els.sheetRefHint.hidden = false;
-      els.sheetRefHint.textContent = `חפשי: ${sheetRef.hint}`;
+      els.sheetRefHint.textContent = sheetRef.hint;
     } else {
       els.sheetRefHint.hidden = true;
       els.sheetRefHint.textContent = "";
     }
     if (els.sheetRefLink) {
       els.sheetRefLink.href = `${SHEET_PDF}#page=${page}`;
-      els.sheetRefLink.textContent = `פתח PDF מלא — עמוד ${page} →`;
+      els.sheetRefLink.textContent = `PDF מקורי עמוד ${page} (בלי סימון)`;
     }
 
-    // Visual highlight on page image
     ensureSheetHighlights().then((data) => {
       const hl = data.highlights && data.highlights[String(questionId)];
-      if (!hl || !els.sheetViewer) {
+      if (!hl) {
         if (els.sheetViewer) els.sheetViewer.hidden = true;
+        if (els.sheetCropWrap) els.sheetCropWrap.hidden = true;
         currentHighlight = null;
         return;
       }
       currentHighlight = { ...hl, questionId, section };
-      showSheetHighlight(hl);
+      loadSheetPageImage(hl.page).then((img) => {
+        currentSheetImg = img;
+        paintSheetHighlight(img, hl);
+      });
     });
   }
 
-  function showSheetHighlight(hl) {
-    if (!els.sheetViewer || !els.sheetPageImg || !els.sheetHighlight) return;
-    els.sheetViewer.hidden = false;
+  /** Cache of loaded page images */
+  const sheetImgCache = {};
 
-    const imgSrc = `assets/sheet/page-${hl.page}.png`;
-    const applyLayout = () => {
-      // Percent-based position matches normalized PDF coords
-      const style = {
-        left: `${hl.x * 100}%`,
-        top: `${hl.y * 100}%`,
-        width: `${hl.w * 100}%`,
-        height: `${hl.h * 100}%`,
+  function loadSheetPageImage(pageNum) {
+    const src = `assets/sheet/page-${pageNum}.png`;
+    if (sheetImgCache[src] && sheetImgCache[src].complete) {
+      return Promise.resolve(sheetImgCache[src]);
+    }
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        sheetImgCache[src] = img;
+        resolve(img);
       };
-      Object.assign(els.sheetHighlight.style, style);
+      img.onerror = () => reject(new Error("Failed to load " + src));
+      img.src = src;
+      sheetImgCache[src] = img;
+    });
+  }
 
-      // Cut a soft hole in the dim layer so the answer region stays bright
-      if (els.sheetDim) {
-        const top = hl.y * 100;
-        const left = hl.x * 100;
-        const right = (hl.x + hl.w) * 100;
-        const bottom = (hl.y + hl.h) * 100;
-        // 4-rect poly via clip-path: full rect with hole is hard in pure CSS;
-        // use box-shadow punch instead (large shadow = dim, no fill on box)
-        els.sheetDim.style.cssText = `
-          position:absolute; left:${left}%; top:${top}%; width:${hl.w * 100}%; height:${hl.h * 100}%;
-          box-shadow: 0 0 0 9999px rgba(4, 6, 14, 0.62);
-          background: transparent;
-          border-radius: 6px;
-          pointer-events: none;
-        `;
-      }
+  /**
+   * Paint the page onto canvas with a loud yellow highlight + dim outside.
+   * The mark is baked into pixels so it cannot be missed.
+   */
+  function paintSheetHighlight(img, hl) {
+    const pageCanvas = els.sheetPageCanvas;
+    const cropCanvas = els.sheetCropCanvas;
+    if (!pageCanvas) return;
 
-      // Scroll highlight into view (center-ish)
-      if (els.sheetViewport && els.sheetPage) {
-        const vp = els.sheetViewport;
-        const pageH = els.sheetPage.offsetHeight || 1;
-        const targetY = hl.y * pageH - vp.clientHeight * 0.25;
-        vp.scrollTop = Math.max(0, targetY);
-        vp.scrollLeft = 0;
-      }
-    };
+    if (els.sheetViewer) els.sheetViewer.hidden = false;
 
-    if (els.sheetPageImg.getAttribute("src") === imgSrc && els.sheetPageImg.complete) {
-      applyLayout();
-    } else {
-      els.sheetPageImg.onload = applyLayout;
-      els.sheetPageImg.src = imgSrc;
-      els.sheetPageImg.alt = `דף עזר — עמוד ${hl.page}`;
+    const W = img.naturalWidth;
+    const H = img.naturalHeight;
+    const rx = hl.x * W;
+    const ry = hl.y * H;
+    const rw = Math.max(8, hl.w * W);
+    const rh = Math.max(8, hl.h * H);
+
+    // ── Full page with highlight ──
+    pageCanvas.width = W;
+    pageCanvas.height = H;
+    const ctx = pageCanvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    // Dim whole page
+    ctx.fillStyle = "rgba(10, 12, 24, 0.55)";
+    ctx.fillRect(0, 0, W, H);
+
+    // Punch hole: redraw original in highlight rect
+    ctx.drawImage(img, rx, ry, rw, rh, rx, ry, rw, rh);
+
+    // Bright yellow marker fill
+    ctx.fillStyle = "rgba(255, 220, 0, 0.42)";
+    ctx.fillRect(rx, ry, rw, rh);
+
+    // Thick magenta/cyan border
+    ctx.lineWidth = Math.max(4, W * 0.006);
+    ctx.strokeStyle = "#ff006e";
+    ctx.strokeRect(rx, ry, rw, rh);
+    ctx.lineWidth = Math.max(2, W * 0.003);
+    ctx.strokeStyle = "#00f0ff";
+    ctx.strokeRect(rx + 4, ry + 4, rw - 8, rh - 8);
+
+    // Label pill above the highlight
+    const label = "★ כאן";
+    ctx.font = `bold ${Math.round(W * 0.028)}px Inter, Arial, sans-serif`;
+    const tw = ctx.measureText(label).width;
+    const pad = 10;
+    const lx = Math.min(Math.max(4, rx), W - tw - pad * 2 - 8);
+    const ly = Math.max(28, ry - 10);
+    ctx.fillStyle = "#ff006e";
+    ctx.fillRect(lx, ly - 22, tw + pad * 2, 28);
+    ctx.fillStyle = "#fff";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, lx + pad, ly - 8);
+
+    // Scroll so highlight is visible in the viewport
+    requestAnimationFrame(() => {
+      if (!els.sheetViewport) return;
+      const displayH = pageCanvas.getBoundingClientRect().height || pageCanvas.clientHeight;
+      const scale = displayH / H;
+      const targetY = ry * scale - els.sheetViewport.clientHeight * 0.2;
+      els.sheetViewport.scrollTop = Math.max(0, targetY);
+    });
+
+    // ── Zoomed crop of the answer region ──
+    if (cropCanvas && els.sheetCropWrap) {
+      els.sheetCropWrap.hidden = false;
+      const padY = rh * 0.35;
+      const padX = rw * 0.04;
+      const cx = Math.max(0, rx - padX);
+      const cy = Math.max(0, ry - padY);
+      const cw = Math.min(W - cx, rw + padX * 2);
+      const ch = Math.min(H - cy, rh + padY * 2);
+
+      // Render crop at high res for readability
+      const outW = 900;
+      const outH = Math.round(outW * (ch / cw));
+      cropCanvas.width = outW;
+      cropCanvas.height = outH;
+      const cctx = cropCanvas.getContext("2d");
+      cctx.drawImage(img, cx, cy, cw, ch, 0, 0, outW, outH);
+
+      // Map highlight into crop coords
+      const sx = ((rx - cx) / cw) * outW;
+      const sy = ((ry - cy) / ch) * outH;
+      const sw = (rw / cw) * outW;
+      const sh = (rh / ch) * outH;
+
+      cctx.fillStyle = "rgba(255, 220, 0, 0.38)";
+      cctx.fillRect(sx, sy, sw, sh);
+      cctx.lineWidth = 5;
+      cctx.strokeStyle = "#ff006e";
+      cctx.strokeRect(sx, sy, sw, sh);
+      cctx.lineWidth = 2;
+      cctx.strokeStyle = "#00f0ff";
+      cctx.strokeRect(sx + 3, sy + 3, sw - 6, sh - 6);
     }
   }
 
@@ -959,36 +1032,61 @@
     els.sheetLightbox.hidden = false;
     document.body.style.overflow = "hidden";
 
-    els.sheetLightboxInner.innerHTML = `
-      <div class="sheet-page" id="lightbox-page">
-        <img src="assets/sheet/page-${hl.page}.png" alt="דף עזר עמוד ${hl.page}" style="width:100%;height:auto;display:block;" />
-        <div class="sheet-dim" id="lightbox-dim"></div>
-        <div class="sheet-highlight" id="lightbox-hl"></div>
-      </div>
-    `;
-    const dim = els.sheetLightboxInner.querySelector("#lightbox-dim");
-    const box = els.sheetLightboxInner.querySelector("#lightbox-hl");
-    const page = els.sheetLightboxInner.querySelector("#lightbox-page");
-    Object.assign(box.style, {
-      left: `${hl.x * 100}%`,
-      top: `${hl.y * 100}%`,
-      width: `${hl.w * 100}%`,
-      height: `${hl.h * 100}%`,
-    });
-    dim.style.cssText = `
-      position:absolute; left:${hl.x * 100}%; top:${hl.y * 100}%;
-      width:${hl.w * 100}%; height:${hl.h * 100}%;
-      box-shadow: 0 0 0 9999px rgba(4, 6, 14, 0.62);
-      background: transparent; border-radius: 6px; pointer-events: none;
-    `;
-    // Scroll after image loads
-    const img = els.sheetLightboxInner.querySelector("img");
-    const scrollToHl = () => {
-      const h = page.offsetHeight || 1;
-      els.sheetLightboxInner.scrollTop = Math.max(0, hl.y * h - 80);
+    const paint = (img) => {
+      const canvas = document.createElement("canvas");
+      canvas.className = "sheet-page-canvas lightbox-canvas";
+      // Reuse painter into a temp canvas by temporarily swapping refs
+      const prevPage = els.sheetPageCanvas;
+      const prevCrop = els.sheetCropCanvas;
+      const prevWrap = els.sheetCropWrap;
+      const prevViewer = els.sheetViewer;
+      const prevVp = els.sheetViewport;
+      // Manual paint for lightbox
+      const W = img.naturalWidth;
+      const H = img.naturalHeight;
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      const rx = hl.x * W;
+      const ry = hl.y * H;
+      const rw = Math.max(8, hl.w * W);
+      const rh = Math.max(8, hl.h * H);
+      ctx.drawImage(img, 0, 0);
+      ctx.fillStyle = "rgba(10, 12, 24, 0.55)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(img, rx, ry, rw, rh, rx, ry, rw, rh);
+      ctx.fillStyle = "rgba(255, 220, 0, 0.42)";
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.lineWidth = Math.max(4, W * 0.006);
+      ctx.strokeStyle = "#ff006e";
+      ctx.strokeRect(rx, ry, rw, rh);
+      ctx.lineWidth = Math.max(2, W * 0.003);
+      ctx.strokeStyle = "#00f0ff";
+      ctx.strokeRect(rx + 4, ry + 4, rw - 8, rh - 8);
+
+      els.sheetLightboxInner.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.className = "sheet-lightbox-page";
+      wrap.appendChild(canvas);
+      els.sheetLightboxInner.appendChild(wrap);
+
+      requestAnimationFrame(() => {
+        const displayH = canvas.getBoundingClientRect().height || canvas.clientHeight;
+        const scale = displayH / H;
+        els.sheetLightboxInner.scrollTop = Math.max(0, ry * scale - 60);
+      });
+
+      // silence unused
+      void prevPage; void prevCrop; void prevWrap; void prevViewer; void prevVp;
     };
-    if (img.complete) scrollToHl();
-    else img.onload = scrollToHl;
+
+    if (currentSheetImg && currentSheetImg.complete) {
+      paint(currentSheetImg);
+    } else {
+      loadSheetPageImage(hl.page).then(paint).catch(() => {
+        els.sheetLightboxInner.innerHTML = "<p style='color:#fff;padding:2rem;'>לא ניתן לטעון את דף העזר</p>";
+      });
+    }
   }
 
   function closeSheetLightbox() {
@@ -1580,6 +1678,10 @@
     els.btnConfused.addEventListener("click", () => advance(false));
 
     els.btnSheetExpand?.addEventListener("click", () => {
+      playClick();
+      openSheetLightbox();
+    });
+    els.btnSheetOpenHl?.addEventListener("click", () => {
       playClick();
       openSheetLightbox();
     });

@@ -755,11 +755,40 @@ body {
   outline: none;
 }
 
-/* Embedded page viewer with highlight */
+/* Zoomed crop of answer region — first thing you see */
+.sheet-crop-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #ff006e;
+  background: #fff;
+  box-shadow: 0 0 24px rgba(255, 0, 110, 0.35);
+}
+
+.sheet-crop-wrap[hidden] {
+  display: none !important;
+}
+
+.sheet-crop-label {
+  padding: 0.4rem 0.75rem;
+  background: linear-gradient(90deg, #ff006e, #c77dff);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.sheet-crop-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+
+/* Full page viewer with baked-in highlight */
 .sheet-viewer {
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(0, 240, 255, 0.25);
+  border: 1px solid rgba(0, 240, 255, 0.35);
   background: #12121a;
 }
 
@@ -780,7 +809,7 @@ body {
 .sheet-viewer-label {
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--cyan);
+  color: #ffe066;
   letter-spacing: 0.02em;
 }
 
@@ -803,63 +832,51 @@ body {
 
 .sheet-viewport {
   position: relative;
-  max-height: min(52vh, 420px);
+  max-height: min(58vh, 480px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  background: #0a0a10;
-  /* Force LTR so page image isn't mirrored in RTL layout */
+  background: #1a1a22;
   direction: ltr;
 }
 
-.sheet-page {
-  position: relative;
-  width: 100%;
-  line-height: 0;
-}
-
-.sheet-page img {
+.sheet-page-canvas {
+  display: block;
   width: 100%;
   height: auto;
-  display: block;
-  user-select: none;
+  vertical-align: top;
 }
 
-/* Darken everything outside the answer region */
-.sheet-dim {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  /* hole cut via CSS mask set in JS */
-  background: rgba(4, 6, 14, 0.62);
-  transition: opacity 0.25s ease;
+.sheet-pdf-note {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
 }
 
-.sheet-highlight {
-  position: absolute;
-  pointer-events: none;
-  border: 2.5px solid #00f0ff;
-  border-radius: 6px;
-  box-shadow:
-    0 0 0 1px rgba(0, 240, 255, 0.35),
-    0 0 22px rgba(0, 240, 255, 0.55),
-    inset 0 0 28px rgba(0, 240, 255, 0.12);
-  background: rgba(0, 240, 255, 0.08);
-  animation: highlightPulse 1.6s ease-in-out infinite;
+.sheet-pdf-note strong {
+  color: var(--star);
 }
 
-@keyframes highlightPulse {
-  0%, 100% {
-    box-shadow:
-      0 0 0 1px rgba(0, 240, 255, 0.35),
-      0 0 18px rgba(0, 240, 255, 0.45),
-      inset 0 0 24px rgba(0, 240, 255, 0.1);
-  }
-  50% {
-    box-shadow:
-      0 0 0 2px rgba(0, 240, 255, 0.55),
-      0 0 32px rgba(0, 240, 255, 0.75),
-      inset 0 0 36px rgba(0, 240, 255, 0.16);
-  }
+.sheet-ref-link-btn {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--cyan);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sheet-ref-link.muted {
+  opacity: 0.65;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 /* Fullscreen lightbox for closer reading */
@@ -867,7 +884,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  background: rgba(4, 6, 14, 0.92);
+  background: rgba(4, 6, 14, 0.94);
   display: flex;
   flex-direction: column;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -900,9 +917,15 @@ body {
   padding: 3.5rem 0.75rem 1.25rem;
 }
 
-.sheet-lightbox-inner .sheet-page {
-  max-width: 900px;
+.sheet-lightbox-page {
+  max-width: 920px;
   margin: 0 auto;
+}
+
+.sheet-lightbox-page .sheet-page-canvas {
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
 
 .explain-actions {

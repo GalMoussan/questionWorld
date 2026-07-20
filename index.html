@@ -102,35 +102,45 @@
     <!-- EXPLANATION -->
     <section id="screen-explain" class="screen" aria-label="הסבר">
       <div class="correct-banner" id="correct-banner"></div>
-      <div class="explain-panel">
-        <h3>💡 למה זו התשובה?</h3>
-        <p id="explain-text"></p>
-      </div>
+
+      <!-- Highlighted sheet comes FIRST — this is where the mark is drawn -->
       <div class="sheet-ref" id="sheet-ref" hidden>
         <div class="sheet-ref-header">
-          <div class="sheet-ref-icon" aria-hidden="true">📄</div>
+          <div class="sheet-ref-icon" aria-hidden="true">📍</div>
           <div class="sheet-ref-body">
-            <div class="sheet-ref-label">איפה בדף העזר?</div>
+            <div class="sheet-ref-label">מסומן בדף העזר</div>
             <div class="sheet-ref-title" id="sheet-ref-title"></div>
             <div class="sheet-ref-hint" id="sheet-ref-hint"></div>
           </div>
         </div>
+
+        <!-- Close-up crop of the highlighted text -->
+        <div class="sheet-crop-wrap" id="sheet-crop-wrap" hidden>
+          <div class="sheet-crop-label">🔍 תקריב על האזור המסומן</div>
+          <canvas id="sheet-crop-canvas" class="sheet-crop-canvas" aria-label="תקריב אזור התשובה"></canvas>
+        </div>
+
         <div class="sheet-viewer" id="sheet-viewer" hidden>
           <div class="sheet-viewer-toolbar">
-            <span class="sheet-viewer-label">האזור המסומן = התשובה בדף</span>
+            <span class="sheet-viewer-label">🟡 צהוב = איפה התשובה בעמוד</span>
             <button type="button" class="sheet-zoom-btn" id="btn-sheet-expand" title="הגדל תצוגה">⤢</button>
           </div>
           <div class="sheet-viewport" id="sheet-viewport">
-            <div class="sheet-page" id="sheet-page">
-              <img id="sheet-page-img" alt="דף עזר" draggable="false" />
-              <div class="sheet-dim" id="sheet-dim" aria-hidden="true"></div>
-              <div class="sheet-highlight" id="sheet-highlight" aria-hidden="true"></div>
-            </div>
+            <!-- Canvas with highlight painted into the pixels -->
+            <canvas id="sheet-page-canvas" class="sheet-page-canvas" aria-label="דף עזר עם סימון"></canvas>
           </div>
         </div>
-        <a class="sheet-ref-link" id="sheet-ref-link" href="assets/remembrance-sheet.pdf" target="_blank" rel="noopener">
-          פתח PDF מלא →
-        </a>
+
+        <p class="sheet-pdf-note">
+          הסימון מופיע <strong>כאן באפליקציה</strong> — לא בתוך קובץ ה־PDF עצמו.
+          <button type="button" class="sheet-ref-link-btn" id="btn-sheet-open-hl">פתח סימון במסך מלא</button>
+          <a class="sheet-ref-link muted" id="sheet-ref-link" href="assets/remembrance-sheet.pdf" target="_blank" rel="noopener">PDF מקורי (בלי סימון)</a>
+        </p>
+      </div>
+
+      <div class="explain-panel">
+        <h3>💡 למה זו התשובה?</h3>
+        <p id="explain-text"></p>
       </div>
 
       <!-- Fullscreen sheet overlay -->
