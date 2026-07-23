@@ -7,7 +7,7 @@ Interactive, dark-themed, ADHD-friendly quiz app for cramming academic sim exams
 | Quiz | Questions | Sheet (דף עזר) |
 |------|-----------|----------------|
 | **Psychology** | 50 | Yes — remembrance sheet with highlights |
-| **SHESAIM** | 14 | No — explanations only |
+| **SHESAIM** | 28 | No — explanations only |
 
 Space game-show vibes + real learning analytics. Built to run **locally in the browser** with no build step.
 
