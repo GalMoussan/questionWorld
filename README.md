@@ -1,6 +1,13 @@
 # Psychology Quiz Master
 
-Interactive, dark-themed, ADHD-friendly psychology quiz for cramming a 50-question academic sim exam (Hebrew).
+Interactive, dark-themed, ADHD-friendly quiz app for cramming academic sim exams (Hebrew).
+
+**Two quizzes on the start menu:**
+
+| Quiz | Questions | Sheet (דף עזר) |
+|------|-----------|----------------|
+| **Psychology** | 50 | Yes — remembrance sheet with highlights |
+| **SHESAIM** | 14 | No — explanations only |
 
 Space game-show vibes + real learning analytics. Built to run **locally in the browser** with no build step.
 
@@ -15,7 +22,7 @@ open index.html
 # or: python3 -m http.server 8765  →  http://localhost:8765
 ```
 
-3. Click **START THE QUIZ**. Optional: resume from localStorage if you refresh mid-run.
+3. Pick a quiz card: **Psychology** or **SHESAIM**. Optional: resume from localStorage if you refresh mid-run.
 
 ## Deploy to Vercel (mobile)
 
@@ -44,10 +51,12 @@ After deploy, open the `*.vercel.app` URL on your phone. On iOS Safari: Share �
 | `index.html` | App shell |
 | `styles.css` | Theme, motion, layout |
 | `app.js` | Game flow, analytics, sound, storage |
-| `questions.js` | Embedded question bank (loaded by the app) |
-| `questions.md` | Human-editable source bank (same content) |
-| `questions.json` | Machine-readable bank |
-| `assets/remembrance-sheet.pdf` | דף עזר (cheat sheet) — linked from explanations |
+| `questions.js` | Psychology question bank |
+| `questions-shesaim.js` | SHESAIM (שסעים חברתיים) bank — no sheet refs |
+| `questions.md` | Human-editable psychology source |
+| `questions-shesaim.md` | Human-editable SHESAIM source |
+| `questions.json` | Machine-readable psychology bank |
+| `assets/remembrance-sheet.pdf` | דף עזר — Psychology explanations only |
 | `tools/sheet-refs.mjs` | Page + section map for each question |
 
 Chart.js is loaded from a CDN for the results charts. Everything else is offline-capable once fonts/CDN are cached.

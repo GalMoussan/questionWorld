@@ -1,18 +1,50 @@
 /* ═══════════════════════════════════════════════════════════
-   Psychology Quiz Master — App Logic
+   Quiz Master — App Logic (multi-quiz)
    ═══════════════════════════════════════════════════════════ */
 
 (function () {
   "use strict";
 
-  // v3: anti-pattern answer curve + random question order + full layouts
-  const STORAGE_KEY = "psychQuizMaster_v3";
+  // v4: multi-quiz catalog + per-quiz storage
+  const STORAGE_PREFIX = "psychQuizMaster_v4_";
+  const LEGACY_KEYS = ["psychQuizMaster_v1", "psychQuizMaster_v2", "psychQuizMaster_v3"];
   const TOTAL = () => state.questions.length;
   const OPTION_KEYS = ["A", "B", "C", "D"];
+
+  /** Available quizzes — psychology keeps the דף עזר; SHESAIM does not. */
+  const QUIZ_CATALOG = {
+    psychology: {
+      id: "psychology",
+      title: "Psychology",
+      shortLabel: "Psychology",
+      questions:
+        typeof QUIZ_QUESTIONS !== "undefined" ? QUIZ_QUESTIONS : [],
+      hasSheet: true,
+      exportName: "study-plan-psychology.md",
+    },
+    shesaim: {
+      id: "shesaim",
+      title: "SHESAIM",
+      shortLabel: "SHESAIM · שסעים",
+      questions:
+        typeof SHESAIM_QUESTIONS !== "undefined" ? SHESAIM_QUESTIONS : [],
+      hasSheet: false,
+      exportName: "study-plan-shesaim.md",
+    },
+  };
+
+  function storageKey(quizId) {
+    return STORAGE_PREFIX + (quizId || state.quizId || "psychology");
+  }
+
+  function activeQuizMeta() {
+    return QUIZ_CATALOG[state.quizId] || QUIZ_CATALOG.psychology;
+  }
 
   // ── State ──────────────────────────────────────────────
   const state = {
     screen: "landing",
+    quizId: null, // set when user picks a quiz
     index: 0,
     score: 0, // first-try correct count
     streak: 0,
@@ -22,7 +54,7 @@
     questionStartedAt: null,
     lockedBlocks: 0,
     answers: [], // per-question analytics
-    questions: QUIZ_QUESTIONS,
+    questions: QUIZ_CATALOG.psychology.questions,
     /** indices into questions[] in play order (shuffled each new quiz) */
     questionOrder: [],
     /**
@@ -43,7 +75,8 @@
     question: $("#screen-question"),
     explain: $("#screen-explain"),
     results: $("#screen-results"),
-    startBtn: $("#btn-start"),
+    quizPsychBtn: $("#btn-quiz-psychology"),
+    quizShesaimBtn: $("#btn-quiz-shesaim"),
     resumeBtn: $("#btn-resume"),
     soundBtn: $("#btn-sound"),
     resetBtn: $("#btn-reset"),
@@ -102,8 +135,10 @@
 
   // ── LocalStorage ───────────────────────────────────────
   function saveProgress() {
+    if (!state.quizId) return;
     try {
       const payload = {
+        quizId: state.quizId,
         index: state.index,
         score: state.score,
         streak: state.streak,
@@ -117,13 +152,13 @@
         answerCurve: state.answerCurve,
         savedAt: Date.now(),
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(storageKey(state.quizId), JSON.stringify(payload));
     } catch (_) { /* ignore */ }
   }
 
-  function loadProgress() {
+  function loadProgress(quizId) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(storageKey(quizId || state.quizId));
       if (!raw) return null;
       return JSON.parse(raw);
     } catch (_) {
@@ -131,18 +166,55 @@
     }
   }
 
-  function clearProgress() {
+  function clearProgress(quizId) {
     try {
-      localStorage.removeItem(STORAGE_KEY);
-      // drop legacy keys so patterned sessions cannot resume
-      localStorage.removeItem("psychQuizMaster_v1");
-      localStorage.removeItem("psychQuizMaster_v2");
+      if (quizId) {
+        localStorage.removeItem(storageKey(quizId));
+      } else if (state.quizId) {
+        localStorage.removeItem(storageKey(state.quizId));
+      } else {
+        Object.keys(QUIZ_CATALOG).forEach((id) => {
+          localStorage.removeItem(storageKey(id));
+        });
+      }
+      LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
     } catch (_) {}
   }
 
+  function isResumablePayload(p, quizId) {
+    if (!p || !Array.isArray(p.answers) || !p.answers.length) return false;
+    const bank = QUIZ_CATALOG[quizId || p.quizId];
+    if (!bank) return false;
+    const total = bank.questions.length;
+    return typeof p.index === "number" && p.index < total;
+  }
+
+  function findResumableQuiz() {
+    // Prefer most recently saved quiz with progress
+    let best = null;
+    for (const id of Object.keys(QUIZ_CATALOG)) {
+      const p = loadProgress(id);
+      if (!isResumablePayload(p, id)) continue;
+      if (!best || (p.savedAt || 0) > (best.savedAt || 0)) {
+        best = { quizId: id, ...p };
+      }
+    }
+    return best;
+  }
+
   function hasResumableProgress() {
-    const p = loadProgress();
-    return p && Array.isArray(p.answers) && p.index < TOTAL() && p.answers.length > 0;
+    return !!findResumableQuiz();
+  }
+
+  function selectQuiz(quizId) {
+    const meta = QUIZ_CATALOG[quizId];
+    if (!meta || !meta.questions.length) {
+      console.error("[QuizMaster] unknown or empty quiz:", quizId);
+      return false;
+    }
+    state.quizId = quizId;
+    state.questions = meta.questions;
+    return true;
   }
 
   // ── Sound (Web Audio, no assets) ───────────────────────
@@ -662,9 +734,10 @@
     return rec;
   }
 
-  function startQuiz(fromResume = false) {
+  function startQuiz(quizId, fromResume = false) {
     ensureAudio();
     if (!fromResume) {
+      if (!selectQuiz(quizId)) return;
       state.index = 0;
       state.score = 0;
       state.streak = 0;
@@ -678,10 +751,18 @@
       state.layouts = session.layouts;
       state.answerCurve = session.answerCurve;
       resetKnowledgeBlocksVisual();
-      clearProgress();
+      clearProgress(quizId);
       saveProgress();
     } else {
-      const p = loadProgress();
+      const resume = typeof quizId === "object" && quizId
+        ? quizId
+        : findResumableQuiz();
+      if (!resume || !selectQuiz(resume.quizId)) {
+        showScreen("landing");
+        updateLandingResume();
+        return;
+      }
+      const p = loadProgress(resume.quizId) || resume;
       if (p && p.layouts && p.questionOrder && p.questionOrder.length) {
         state.index = p.index || 0;
         state.score = p.score || 0;
@@ -700,7 +781,7 @@
           placeLockedBlock(free[0], i);
         }
       } else {
-        // No valid v3 session — start fresh with full shuffle
+        // No valid session — start fresh with full shuffle
         const session = generateSessionLayouts();
         state.questionOrder = session.questionOrder;
         state.layouts = session.layouts;
@@ -710,6 +791,8 @@
         state.answers = [];
       }
     }
+    // Prefetch sheet highlights only for quizzes that use the דף עזר
+    if (activeQuizMeta().hasSheet) ensureSheetHighlights();
     updateSoundUI();
     showQuestion();
   }
@@ -869,7 +952,8 @@
    */
   function renderSheetRef(sheetRef, questionId) {
     if (!els.sheetRef) return;
-    if (!sheetRef || !sheetRef.page) {
+    // SHESAIM (and any quiz without a sheet) never shows דף עזר UI
+    if (!activeQuizMeta().hasSheet || !sheetRef || !sheetRef.page) {
       els.sheetRef.hidden = true;
       currentHighlight = null;
       return;
@@ -1256,6 +1340,47 @@
         "אפקט הצופה מהצד ופיזור אחריות — מתי עוזרים?",
         "אלטרואיזם: אמפתיה, קרבה גנטית, הדדיות — והאם קיים 'אמיתי'.",
       ],
+      // SHESAIM topics
+      "חברה ישראלית": [
+        "חזרו על כור ההיתוך מול מודל רב-תרבותי / שבטים.",
+        "נאום השבטים של ריבלין: חילונים, דתיים-לאומיים, חרדים, ערבים.",
+        "כתבו דוגמה אחת לכל שבט ולמתח בינו לבין האחרים.",
+      ],
+      "שסעים וקיטוב": [
+        "הבדילו: חברה משוסעת (מבני) מול חברה מקוטבת (רגשי/עוינות).",
+        "שסע חופף vs שסע צולב — איזה מסוכן יותר ולמה.",
+        "מצאו דוגמה ישראלית לשסע חופף (למשל דת+פוליטיקה+מגורים).",
+      ],
+      "אסטרטגיות התמודדות": [
+        "מטריצת התמודדות: לגיטימיות המערכת × חדירות גבולות.",
+        "קבוצה מוחלשת: מוביליות / יצירתיות / מאבק.",
+        "קבוצה פריבילגית: הכחשה, הצדקה מריטוקרטית, הרחקה, פירוק.",
+      ],
+      "שכנוע ושינוי עמדות": [
+        "אפקט הבומרנג — למה עובדות בלבד לא תמיד משכנעות.",
+        "חשיבה פרדוקסלית (המאירי): הסכמה + הקצנה לאבסורד.",
+        "תרגלו ניסוח מסר פרדוקסלי לעמדה שאתם חולקים עליה.",
+      ],
+      "מפגש בין קבוצות": [
+        "גישת המגע vs גישת הקונפליקט — מטרה, תהליך, ביקורת.",
+        "אשליית הרמוניה: מתי מגע 'מרגיש טוב' אבל לא משנה מבנים.",
+        "מתי מתאים להדגיש יחסי כוח במפגש יהודים–ערבים.",
+      ],
+      "תיאוריות חברתיות": [
+        "פרדיגמת הקבוצה המינימלית (טאג'פל) — חלוקה שרירותית מספיקה.",
+        "הכרה שגויה (טיילור) ≠ התעלמות: דימוי מעוות/מקטין.",
+        "קשרו זהות חברתית להעדפת קבוצת פנים ביום-יום.",
+      ],
+      "פוליטיקה ישראלית": [
+        "מלכוד לשון המאזניים: כוח מיקוח של מפלגות סקטוריאליות.",
+        "איך זה מעמיק שסעים ומעצב קואליציות.",
+        "דוגמה אחת מהשנים האחרונות ללשון מאזניים.",
+      ],
+      "הטיות קוגניטיביות": [
+        "הטיית ייחוס בין-קבוצתית: 'הם' = אופי, 'אנחנו' = נסיבות.",
+        "איך ההטיה מזינה קיטוב וסטראוטיפים.",
+        "תרגלו ייחוס הפוך לאירוע חדשותי של קבוצת יריב.",
+      ],
     };
 
     return weakTopics.slice(0, 5).map((t, i) => ({
@@ -1571,7 +1696,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "study-plan-psychology.md";
+    a.download = activeQuizMeta().exportName || "study-plan.md";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1589,10 +1714,27 @@
       return;
     }
 
-    if (state.screen === "landing" && (e.key === "Enter" || e.key === " ")) {
-      e.preventDefault();
-      startQuiz(false);
-      return;
+    if (state.screen === "landing") {
+      if (e.key === "1") {
+        e.preventDefault();
+        playClick();
+        startQuiz("psychology", false);
+        return;
+      }
+      if (e.key === "2") {
+        e.preventDefault();
+        playClick();
+        startQuiz("shesaim", false);
+        return;
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        const resume = findResumableQuiz();
+        if (resume) {
+          e.preventDefault();
+          startQuiz(resume, true);
+        }
+        return;
+      }
     }
 
     if (state.screen === "question") {
@@ -1631,11 +1773,13 @@
   }
 
   function updateLandingResume() {
-    if (hasResumableProgress()) {
+    const resume = findResumableQuiz();
+    if (resume && els.resumeBtn) {
       els.resumeBtn.classList.add("visible");
-      const p = loadProgress();
-      els.resumeBtn.textContent = `▶ המשך משאלה ${(p.index || 0) + 1}`;
-    } else {
+      const meta = QUIZ_CATALOG[resume.quizId];
+      const label = meta ? meta.shortLabel : resume.quizId;
+      els.resumeBtn.textContent = `▶ המשך ${label} · שאלה ${(resume.index || 0) + 1}`;
+    } else if (els.resumeBtn) {
       els.resumeBtn.classList.remove("visible");
     }
   }
@@ -1645,24 +1789,31 @@
     initStarfield();
     initKnowledgeBlocks();
 
-    els.startBtn.addEventListener("click", () => {
+    els.quizPsychBtn?.addEventListener("click", () => {
       playClick();
-      startQuiz(false);
+      startQuiz("psychology", false);
     });
-    els.resumeBtn.addEventListener("click", () => {
+    els.quizShesaimBtn?.addEventListener("click", () => {
       playClick();
-      startQuiz(true);
+      startQuiz("shesaim", false);
+    });
+    els.resumeBtn?.addEventListener("click", () => {
+      playClick();
+      const resume = findResumableQuiz();
+      if (resume) startQuiz(resume, true);
     });
     els.soundBtn.addEventListener("click", () => {
       state.soundOn = !state.soundOn;
       updateSoundUI();
       if (state.soundOn) playClick();
-      saveProgress();
+      // persist sound preference on whichever quiz has progress, else skip
+      if (state.quizId) saveProgress();
     });
     els.resetBtn.addEventListener("click", () => {
-      if (confirm("לאפס התקדמות ולהתחיל מחדש?")) {
+      if (confirm("לאפס את כל ההתקדמות (כל המבחנים) ולהתחיל מחדש?")) {
         clearProgress();
         destroyCharts();
+        state.quizId = null;
         state.index = 0;
         state.score = 0;
         state.answers = [];
@@ -1693,24 +1844,24 @@
       if (e.target === els.sheetLightbox) closeSheetLightbox();
     });
 
-    // Prefetch highlight map so first correct answer is snappy
-    ensureSheetHighlights();
-
     $("#btn-export")?.addEventListener("click", exportStudyPlan);
     $("#btn-restart")?.addEventListener("click", () => {
-      clearProgress();
+      if (state.quizId) clearProgress(state.quizId);
       destroyCharts();
+      state.quizId = null;
       showScreen("landing");
       updateLandingResume();
     });
 
     document.addEventListener("keydown", onKey);
 
-    // Landing stats
-    $("#stat-questions").textContent = String(TOTAL());
-    $("#stat-topics").textContent = String(
-      new Set(QUIZ_QUESTIONS.map((q) => q.topic)).size
-    );
+    // Landing quiz card stats
+    const psych = QUIZ_CATALOG.psychology;
+    const shesaim = QUIZ_CATALOG.shesaim;
+    const elPsychQ = $("#stat-psych-q");
+    const elShesaimQ = $("#stat-shesaim-q");
+    if (elPsychQ) elPsychQ.textContent = String(psych.questions.length);
+    if (elShesaimQ) elShesaimQ.textContent = String(shesaim.questions.length);
 
     updateSoundUI();
     updateLandingResume();
