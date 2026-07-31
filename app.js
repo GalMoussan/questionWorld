@@ -5,40 +5,83 @@
 (function () {
   "use strict";
 
-  // v4: multi-quiz catalog + per-quiz storage
-  const STORAGE_PREFIX = "psychQuizMaster_v4_";
-  const LEGACY_KEYS = ["psychQuizMaster_v1", "psychQuizMaster_v2", "psychQuizMaster_v3"];
+  // v5: force fresh sessions so anti-pattern option layouts always apply
+  // (v4 resumes could show bank letters if layouts were missing/stale)
+  const STORAGE_PREFIX = "psychQuizMaster_v5_";
+  const LEGACY_KEYS = [
+    "psychQuizMaster_v1",
+    "psychQuizMaster_v2",
+    "psychQuizMaster_v3",
+    "psychQuizMaster_v4_", // prefix cleaned in clearProgress via catalog keys too
+  ];
   const TOTAL = () => state.questions.length;
   const OPTION_KEYS = ["A", "B", "C", "D"];
 
-  /** Available quizzes — psychology keeps the דף עזר; SHESAIM does not. */
+  /**
+   * Available quizzes.
+   * enabled:false hides from landing (keeps bank loadable for later).
+   * hasSheet + sheet: multi-doc or single-sheet highlight support.
+   */
   const QUIZ_CATALOG = {
     psychology: {
       id: "psychology",
       title: "Psychology",
       shortLabel: "Psychology",
+      enabled: false,
       questions:
         typeof QUIZ_QUESTIONS !== "undefined" ? QUIZ_QUESTIONS : [],
       hasSheet: true,
+      sheet: {
+        kind: "single",
+        pdf: "assets/remembrance-sheet.pdf",
+        highlightsUrl: "assets/sheet/highlights.json",
+        pageFile: (page) => `assets/sheet/page-${page}.png`,
+      },
       exportName: "study-plan-psychology.md",
     },
     shesaim: {
       id: "shesaim",
       title: "SHESAIM",
       shortLabel: "SHESAIM · שסעים",
+      enabled: false,
       questions:
         typeof SHESAIM_QUESTIONS !== "undefined" ? SHESAIM_QUESTIONS : [],
       hasSheet: false,
       exportName: "study-plan-shesaim.md",
     },
+    logicb: {
+      id: "logicb",
+      title: "לוגיקה ב - פול פאוור",
+      shortLabel: "לוגיקה ב · פול פאוור",
+      enabled: true,
+      questions:
+        typeof LOGICB_QUESTIONS !== "undefined" ? LOGICB_QUESTIONS : [],
+      hasSheet: true,
+      sheet: {
+        kind: "multi-doc",
+        /** doc number → PDF path */
+        pdfForDoc: (doc) => `assets/logic-b/tamsir-${doc}.pdf`,
+        highlightsUrl: "assets/logic-b/sheet/highlights.json",
+        pageFile: (doc, page) => `assets/logic-b/sheet/t${doc}-p${page}.png`,
+        docLabel: (doc) => `תמסיר ${doc}`,
+      },
+      exportName: "study-plan-logicb.md",
+    },
   };
+
+  function enabledQuizzes() {
+    return Object.values(QUIZ_CATALOG).filter((q) => q.enabled !== false);
+  }
 
   function storageKey(quizId) {
     return STORAGE_PREFIX + (quizId || state.quizId || "psychology");
   }
 
   function activeQuizMeta() {
-    return QUIZ_CATALOG[state.quizId] || QUIZ_CATALOG.psychology;
+    if (state.quizId && QUIZ_CATALOG[state.quizId]) {
+      return QUIZ_CATALOG[state.quizId];
+    }
+    return enabledQuizzes()[0] || QUIZ_CATALOG.logicb;
   }
 
   // ── State ──────────────────────────────────────────────
@@ -54,7 +97,7 @@
     questionStartedAt: null,
     lockedBlocks: 0,
     answers: [], // per-question analytics
-    questions: QUIZ_CATALOG.psychology.questions,
+    questions: (QUIZ_CATALOG.logicb && QUIZ_CATALOG.logicb.questions) || [],
     /** indices into questions[] in play order (shuffled each new quiz) */
     questionOrder: [],
     /**
@@ -77,6 +120,7 @@
     results: $("#screen-results"),
     quizPsychBtn: $("#btn-quiz-psychology"),
     quizShesaimBtn: $("#btn-quiz-shesaim"),
+    quizLogicbBtn: $("#btn-quiz-logicb"),
     resumeBtn: $("#btn-resume"),
     soundBtn: $("#btn-sound"),
     resetBtn: $("#btn-reset"),
@@ -113,11 +157,10 @@
     kBlocks: $("#knowledge-blocks"),
   };
 
-  const SHEET_PDF = "assets/remembrance-sheet.pdf";
-  const HIGHLIGHTS_URL = "assets/sheet/highlights.json";
-
-  /** @type {{ pages?: object, highlights?: Record<string, object> } | null} */
+  /** @type {{ pages?: object, highlights?: Record<string, object>, docs?: object } | null} */
   let sheetHighlights = null;
+  /** Cache key so switching quizzes reloads the right highlights.json */
+  let sheetHighlightsKey = null;
   let sheetHighlightsPromise = null;
   let currentHighlight = null;
   /** @type {HTMLImageElement | null} */
@@ -177,7 +220,14 @@
           localStorage.removeItem(storageKey(id));
         });
       }
+      // Drop exact legacy keys + any psychQuizMaster_v* prefixes (old sessions)
       LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("psychQuizMaster_v") && !k.startsWith(STORAGE_PREFIX)) {
+          localStorage.removeItem(k);
+        }
+      }
     } catch (_) {}
   }
 
@@ -186,13 +236,26 @@
     const bank = QUIZ_CATALOG[quizId || p.quizId];
     if (!bank) return false;
     const total = bank.questions.length;
-    return typeof p.index === "number" && p.index < total;
+    if (typeof p.index !== "number" || p.index >= total) return false;
+    // Require a full anti-pattern layout map — never resume bare bank letters
+    if (!p.layouts || typeof p.layouts !== "object") return false;
+    if (!Array.isArray(p.questionOrder) || p.questionOrder.length !== total) return false;
+    const layoutCount = Object.keys(p.layouts).length;
+    if (layoutCount < total) return false;
+    // Sanity: layouts must include all four correct-letter slots somewhere
+    const letters = new Set();
+    for (const L of Object.values(p.layouts)) {
+      if (L && L.correct) letters.add(L.correct);
+    }
+    if (letters.size < 3) return false; // short quizzes may miss one letter
+    return true;
   }
 
   function findResumableQuiz() {
-    // Prefer most recently saved quiz with progress
+    // Prefer most recently saved *enabled* quiz with progress
     let best = null;
     for (const id of Object.keys(QUIZ_CATALOG)) {
+      if (QUIZ_CATALOG[id].enabled === false) continue;
       const p = loadProgress(id);
       if (!isResumablePayload(p, id)) continue;
       if (!best || (p.savedAt || 0) > (best.savedAt || 0)) {
@@ -670,19 +733,28 @@
    */
   function generateSessionLayouts() {
     const n = state.questions.length;
+    if (!n) {
+      console.warn("[QuizMaster] generateSessionLayouts: empty question bank");
+      return { questionOrder: [], layouts: {}, answerCurve: [], score: 0 };
+    }
     const questionOrder = shuffleArray([...Array(n).keys()]);
+    // Stronger search for longer banks (extra 50 → 80+ questions)
     const { curve, score } = buildAnswerCurve(n);
     const layouts = {};
+    const counts = { A: 0, B: 0, C: 0, D: 0 };
     questionOrder.forEach((qIndex, pos) => {
       const q = state.questions[qIndex];
-      layouts[String(q.id)] = layoutQuestion(q, curve[pos]);
+      const slot = curve[pos];
+      layouts[String(q.id)] = layoutQuestion(q, slot);
+      counts[slot]++;
     });
-    if (typeof console !== "undefined" && console.debug) {
-      console.debug(
-        "[QuizMaster] answer curve score=",
-        score,
-        "sequence=",
-        curve.join(""),
+    if (typeof console !== "undefined" && console.info) {
+      console.info(
+        "[QuizMaster] anti-pattern answer curve",
+        "score=" + score,
+        "counts=",
+        counts,
+        "BC%=" + Math.round(((counts.B + counts.C) / n) * 100),
         "first15=",
         curve.slice(0, 15).join(" ")
       );
@@ -746,6 +818,7 @@
       state.lockedBlocks = 0;
       state.startedAt = Date.now();
       // Brand-new anti-pattern curve + shuffled question order every run
+      // Correct text is placed on curve letters — bank A/B/C/D is ignored.
       const session = generateSessionLayouts();
       state.questionOrder = session.questionOrder;
       state.layouts = session.layouts;
@@ -926,12 +999,27 @@
     saveProgress();
   }
 
+  function sheetConfig() {
+    return activeQuizMeta().sheet || null;
+  }
+
   function ensureSheetHighlights() {
-    if (sheetHighlights) return Promise.resolve(sheetHighlights);
-    if (sheetHighlightsPromise) return sheetHighlightsPromise;
-    sheetHighlightsPromise = fetch(HIGHLIGHTS_URL)
+    const cfg = sheetConfig();
+    const url = cfg && cfg.highlightsUrl;
+    if (!url) {
+      return Promise.resolve({ highlights: {}, pages: {} });
+    }
+    if (sheetHighlights && sheetHighlightsKey === url) {
+      return Promise.resolve(sheetHighlights);
+    }
+    if (sheetHighlightsPromise && sheetHighlightsKey === url) {
+      return sheetHighlightsPromise;
+    }
+    sheetHighlightsKey = url;
+    sheetHighlights = null;
+    sheetHighlightsPromise = fetch(url)
       .then((r) => {
-        if (!r.ok) throw new Error("highlights missing");
+        if (!r.ok) throw new Error("highlights missing: " + url);
         return r.json();
       })
       .then((data) => {
@@ -947,21 +1035,40 @@
   }
 
   /**
-   * Show where this answer appears on the remembrance sheet (דף עזר).
+   * Show where this answer appears in the source material (דף עזר / תמסיר).
    * Highlights are painted onto a canvas (NOT inside the raw PDF file).
+   *
+   * sheetRef shapes:
+   *   single-sheet: { page, section, hint }
+   *   multi-doc:    { doc, page, section, hint }  // doc = תמסיר number
    */
   function renderSheetRef(sheetRef, questionId) {
     if (!els.sheetRef) return;
-    // SHESAIM (and any quiz without a sheet) never shows דף עזר UI
-    if (!activeQuizMeta().hasSheet || !sheetRef || !sheetRef.page) {
+    const meta = activeQuizMeta();
+    const hasPage = sheetRef && (sheetRef.page || sheetRef.doc);
+    if (!meta.hasSheet || !hasPage) {
       els.sheetRef.hidden = true;
       currentHighlight = null;
       return;
     }
     els.sheetRef.hidden = false;
     const page = sheetRef.page;
+    const doc = sheetRef.doc;
     const section = sheetRef.section || "";
-    els.sheetRefTitle.textContent = `עמוד ${page}${section ? " · " + section : ""}`;
+    const cfg = sheetConfig();
+    const docLabel =
+      doc && cfg && typeof cfg.docLabel === "function"
+        ? cfg.docLabel(doc)
+        : doc
+          ? `תמסיר ${doc}`
+          : "";
+
+    if (docLabel) {
+      els.sheetRefTitle.textContent = `${docLabel}${page ? " · עמוד " + page : ""}${section ? " · " + section : ""}`;
+    } else {
+      els.sheetRefTitle.textContent = `עמוד ${page}${section ? " · " + section : ""}`;
+    }
+
     if (sheetRef.hint) {
       els.sheetRefHint.hidden = false;
       els.sheetRefHint.textContent = sheetRef.hint;
@@ -969,23 +1076,44 @@
       els.sheetRefHint.hidden = true;
       els.sheetRefHint.textContent = "";
     }
-    if (els.sheetRefLink) {
-      els.sheetRefLink.href = `${SHEET_PDF}#page=${page}`;
-      els.sheetRefLink.textContent = `PDF מקורי עמוד ${page} (בלי סימון)`;
+
+    if (els.sheetRefLink && cfg) {
+      let pdfHref = "#";
+      let linkLabel = "PDF מקורי (בלי סימון)";
+      if (cfg.kind === "multi-doc" && doc && typeof cfg.pdfForDoc === "function") {
+        pdfHref = `${cfg.pdfForDoc(doc)}#page=${page || 1}`;
+        linkLabel = `${docLabel} · PDF עמוד ${page || 1} (בלי סימון)`;
+      } else if (cfg.pdf) {
+        pdfHref = `${cfg.pdf}#page=${page || 1}`;
+        linkLabel = `PDF מקורי עמוד ${page || 1} (בלי סימון)`;
+      }
+      els.sheetRefLink.href = pdfHref;
+      els.sheetRefLink.textContent = linkLabel;
+    }
+
+    // Update sheet-ref label for multi-doc quizzes
+    const labelEl = els.sheetRef.querySelector(".sheet-ref-label");
+    if (labelEl) {
+      labelEl.textContent = docLabel ? "מסומן בתמסיר" : "מסומן בדף העזר";
     }
 
     ensureSheetHighlights().then((data) => {
       const hl = data.highlights && data.highlights[String(questionId)];
       if (!hl) {
+        // Still show title/hint/PDF link even without pixel highlight
         if (els.sheetViewer) els.sheetViewer.hidden = true;
         if (els.sheetCropWrap) els.sheetCropWrap.hidden = true;
         currentHighlight = null;
         return;
       }
       currentHighlight = { ...hl, questionId, section };
-      loadSheetPageImage(hl.page).then((img) => {
+      loadSheetPageImage(hl).then((img) => {
         currentSheetImg = img;
         paintSheetHighlight(img, hl);
+      }).catch((err) => {
+        console.warn("[QuizMaster] page image load failed", err);
+        if (els.sheetViewer) els.sheetViewer.hidden = true;
+        if (els.sheetCropWrap) els.sheetCropWrap.hidden = true;
       });
     });
   }
@@ -993,8 +1121,35 @@
   /** Cache of loaded page images */
   const sheetImgCache = {};
 
-  function loadSheetPageImage(pageNum) {
-    const src = `assets/sheet/page-${pageNum}.png`;
+  /**
+   * Load a rendered page image.
+   * @param {number|{doc?:number,page:number}} pageOrHl
+   */
+  function loadSheetPageImage(pageOrHl) {
+    const cfg = sheetConfig();
+    let src;
+    if (typeof pageOrHl === "object" && pageOrHl) {
+      const doc = pageOrHl.doc;
+      const page = pageOrHl.page;
+      if (cfg && cfg.kind === "multi-doc" && doc && typeof cfg.pageFile === "function") {
+        src = cfg.pageFile(doc, page);
+      } else if (cfg && typeof cfg.pageFile === "function") {
+        src = cfg.pageFile(page);
+      } else {
+        src = `assets/sheet/page-${page}.png`;
+      }
+    } else {
+      const pageNum = pageOrHl;
+      if (cfg && cfg.kind === "multi-doc") {
+        // fallback — should pass hl object for multi-doc
+        src = cfg.pageFile ? cfg.pageFile(1, pageNum) : `assets/sheet/page-${pageNum}.png`;
+      } else if (cfg && typeof cfg.pageFile === "function") {
+        src = cfg.pageFile(pageNum);
+      } else {
+        src = `assets/sheet/page-${pageNum}.png`;
+      }
+    }
+
     if (sheetImgCache[src] && sheetImgCache[src].complete) {
       return Promise.resolve(sheetImgCache[src]);
     }
@@ -1167,8 +1322,8 @@
     if (currentSheetImg && currentSheetImg.complete) {
       paint(currentSheetImg);
     } else {
-      loadSheetPageImage(hl.page).then(paint).catch(() => {
-        els.sheetLightboxInner.innerHTML = "<p style='color:#fff;padding:2rem;'>לא ניתן לטעון את דף העזר</p>";
+      loadSheetPageImage(hl).then(paint).catch(() => {
+        els.sheetLightboxInner.innerHTML = "<p style='color:#fff;padding:2rem;'>לא ניתן לטעון את מקור ההסבר</p>";
       });
     }
   }
@@ -1381,6 +1536,115 @@
         "הטיית ייחוס בין-קבוצתית: 'הם' = אופי, 'אנחנו' = נסיבות.",
         "ריאליזם נאיבי + הטיה שפתית (תכונה קבועה vs חריגה).",
         "תרגלו ייחוס הפוך לאירוע חדשותי של קבוצת יריב.",
+      ],
+      // לוגיקה ב — פול פאוור
+      "מדוע PL נחוצה": [
+        "חזרו על טיעון נועה/דן: למה אותיות אטומיות ב־SL לא שומרות תוקף.",
+        "רשמו: פרדיקטים + מונחים יחידאיים + ביטויי כמות = סיבת התוקף בעברית.",
+        "פתחו תמסיר 1 וסמנו את ההגדרה של PL.",
+      ],
+      "מונחים יחידאיים ופרדיקטים": [
+        "שלושה סוגי מונחים יחידאיים: שם פרטי, תיאור מיידע, כינוי גוף.",
+        "פרדיקט = משפט לא־שלם עם 'פערים' / עמדות ציון.",
+        "כתבו 3 דוגמאות משלכם לפרדיקט חד־מקומי ודו־מקומי.",
+      ],
+      "תחביר PL": [
+        "אוצר סימנים: אותיות פסוקיות, פרדיקטים, a–v / w–z, קשרים, ∀∃.",
+        "סעיף 4: כמת־x רק אם x מופיע ואין כבר כמת־x.",
+        "תרגלו: זהו אופרטור ראשי ותת־נוסחאות מיידיות.",
+      ],
+      "פסוקים ומופעים חופשיים": [
+        "פסוק = אין משתנים חופשיים; נוסחה יכולה להיות פתוחה.",
+        "P(a/x): הצבת קבוע במופעים חופשיים של x.",
+        "למה אי אפשר (∀y) על נוסחה שכבר כוללת כמת־y.",
+      ],
+      "הצרנה בסיסית": [
+        "(∃y)P & (∃y)~P ≠ (∃y)(P & ~P) — שני אנשים מול סתירה.",
+        "כל מי ש… = (∀x)(P → Q); זכרו 'נכון באופן ריק'.",
+        "הבדילו אופרטור ראשי: → מול & בתוך כמת.",
+      ],
+      "הצרנות מתקדמות": [
+        "תרגלו משפטי 'כל…' עם קוניונקציה במסקנה.",
+        "שתי פרפראזות לנמרים/זברות: פיצול ∀ מול איחוד עם ∨.",
+        "(∀x)(∀y)Lxy מול (∀x)(∃y)Lxy — כל/לפחות אחד.",
+      ],
+      "כמתים מקוננים": [
+        "סדר כמתים משנה משמעות: ∀∃ מול ∃∀.",
+        "כל דבר שכבד מכל G ≠ כל דבר שכבד מאיזושהי G.",
+        "תרגלו שלילת 'אף…אף' עם ∼∃.",
+      ],
+      "בחירת פרדיקטים": [
+        "למשפט בודד כמה פירוקים אפשריים; לטיעון — הפירוק קובע תוקף.",
+        "אל תאחדו מידע שצריך 'לגשר' בין הנחות.",
+        "פתחו תמסיר 7: עטלפים / כלבת / עליית גג.",
+      ],
+      "משפטי I ו־A": [
+        "משפט־I מורכב: אדם אחד לשני דברים; קוניונקציית I: אולי שני אנשים.",
+        "משפט־A: (∀y)[(Py & …) → …] — זכרו Px כשתחום כולל לא־אנשים.",
+        "תרגלו הצרנת 'אף אחד ש…לא…' כשלילת I.",
+      ],
+      "תיאורים מיידעים וזהות": [
+        "r אטומי לא מקודד את תוכן התיאור — עלול לשבור תוקף.",
+        "PLE: קיום + יחידות עם = + שאר התכונות.",
+        "כתבו את צורת (∃x)[F(x) & (∀y)(F(y)→y=x) & G(x)].",
+      ],
+      "PLE וסמנטיקה": [
+        "PLE = PL + זהות + סימני פונקציה.",
+        "מונח סגור/פתוח: האם מופיע משתנה.",
+        "פירוש: תחום + אותיות + קבועים + אקסטנציות פרדיקטים.",
+      ],
+      "תנאי אמת לכמתים": [
+        "פסוק פתוח צריך השמה למשתנים, לא רק פירוש.",
+        "∀: לכל u, התיקון d[u/x] מספק את Q.",
+        "∃: קיים לפחות u אחד כזה.",
+      ],
+      // Extra formalization bank topics (ids 32–81)
+      "קשרים פסוקיים": [
+        "תרגלו & ∨ ⊃ ≡ ∼ על קבועים ופרדיקטים.",
+        "הבדילו קוניונקציה מול אימפליקציה בניסוח עברי.",
+        "פתחו תמסיר 3 — הצרנות דן וחבריו.",
+      ],
+      "כולל + גרירה": [
+        "כל… = (∀x)(P → Q), לא (∀x)(P & Q).",
+        "זכרו נכונות ריקה כשהקדמה שקרית.",
+      ],
+      "ישי + קוניונקציה": [
+        "מישהו…וגם… = (∃x)(P & Q).",
+        "אל תערבבו עם שני ∃ נפרדים.",
+      ],
+      "משפט A": [
+        "משפט A: כל S הוא P → (∀x)(Sx → Px).",
+      ],
+      "משפט E": [
+        "משפט E: אף S אינו P → (∀x)(Sx → ∼Px) או ∼(∃x)(Sx & Px).",
+      ],
+      "משפט I": [
+        "משפט I: יש S שהוא P → (∃x)(Sx & Px).",
+      ],
+      "משפט O": [
+        "משפט O: יש S שאינו P → (∃x)(Sx & ∼Px).",
+      ],
+      "שלילת משפט A": [
+        "∼(∀x)(Sx → Px) ≡ (∃x)(Sx & ∼Px).",
+      ],
+      "שלילת משפט I": [
+        "∼(∃x)(Sx & Px) ≡ (∀x)(Sx → ∼Px).",
+      ],
+      "מספרים": [
+        "הצרינו יחסי מספרים עם כמתים מקוננים בזהירות.",
+        "בדקו סדר ארגומנטים בפרדיקטים דו-מקומיים.",
+      ],
+      "זהות (לפחות שניים)": [
+        "לפחות שניים: (∃x)(∃y)∼(x = y) עם התכונות הרלוונטיות.",
+      ],
+      "זהות (בדיוק אחד)": [
+        "בדיוק אחד = קיום + יחידות עם (∀y)(… → y = x).",
+      ],
+      "פונקציה (עוקב)": [
+        "סימני פונקציה ב-PLE — מונחים מורכבים כמו s(x).",
+      ],
+      "פונקציה (סכום)": [
+        "פונקציה דו-מקומית: f(x,y) כתוך מונח יחידאי.",
       ],
     };
 
@@ -1716,23 +1980,21 @@
     }
 
     if (state.screen === "landing") {
-      if (e.key === "1") {
-        e.preventDefault();
-        playClick();
-        startQuiz("psychology", false);
-        return;
-      }
-      if (e.key === "2") {
-        e.preventDefault();
-        playClick();
-        startQuiz("shesaim", false);
-        return;
-      }
-      if (e.key === "Enter" || e.key === " ") {
-        const resume = findResumableQuiz();
-        if (resume) {
+      if (e.key === "1" || e.key === "Enter" || e.key === " ") {
+        // Prefer resume; otherwise start the first enabled quiz
+        if (e.key === "Enter" || e.key === " ") {
+          const resume = findResumableQuiz();
+          if (resume) {
+            e.preventDefault();
+            startQuiz(resume, true);
+            return;
+          }
+        }
+        const first = enabledQuizzes()[0];
+        if (first && e.key === "1") {
           e.preventDefault();
-          startQuiz(resume, true);
+          playClick();
+          startQuiz(first.id, false);
         }
         return;
       }
@@ -1790,13 +2052,14 @@
     initStarfield();
     initKnowledgeBlocks();
 
-    els.quizPsychBtn?.addEventListener("click", () => {
-      playClick();
-      startQuiz("psychology", false);
-    });
-    els.quizShesaimBtn?.addEventListener("click", () => {
-      playClick();
-      startQuiz("shesaim", false);
+    // Landing cards: start enabled quiz by data-quiz
+    $$(".quiz-card[data-quiz]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-quiz");
+        if (!id || !QUIZ_CATALOG[id] || QUIZ_CATALOG[id].enabled === false) return;
+        playClick();
+        startQuiz(id, false);
+      });
     });
     els.resumeBtn?.addEventListener("click", () => {
       playClick();
@@ -1856,13 +2119,44 @@
 
     document.addEventListener("keydown", onKey);
 
-    // Landing quiz card stats
-    const psych = QUIZ_CATALOG.psychology;
-    const shesaim = QUIZ_CATALOG.shesaim;
+    // Landing quiz card stats + hide disabled quizzes
     const elPsychQ = $("#stat-psych-q");
     const elShesaimQ = $("#stat-shesaim-q");
-    if (elPsychQ) elPsychQ.textContent = String(psych.questions.length);
-    if (elShesaimQ) elShesaimQ.textContent = String(shesaim.questions.length);
+    const elLogicbQ = $("#stat-logicb-q");
+    if (elPsychQ && QUIZ_CATALOG.psychology) {
+      elPsychQ.textContent = String(QUIZ_CATALOG.psychology.questions.length);
+    }
+    if (elShesaimQ && QUIZ_CATALOG.shesaim) {
+      elShesaimQ.textContent = String(QUIZ_CATALOG.shesaim.questions.length);
+    }
+    if (elLogicbQ && QUIZ_CATALOG.logicb) {
+      elLogicbQ.textContent = String(QUIZ_CATALOG.logicb.questions.length);
+    }
+
+    // Hide cards for disabled quizzes; show only enabled ones
+    $$(".quiz-card[data-quiz]").forEach((btn) => {
+      const id = btn.getAttribute("data-quiz");
+      const meta = id && QUIZ_CATALOG[id];
+      if (!meta || meta.enabled === false) {
+        btn.hidden = true;
+        btn.setAttribute("aria-hidden", "true");
+      } else {
+        btn.hidden = false;
+        btn.removeAttribute("aria-hidden");
+      }
+    });
+
+    const enabled = enabledQuizzes();
+    const countPill = document.querySelector(".landing-stats .stat-pill strong");
+    // Update first stat pill if it shows quiz count
+    const pills = $$(".landing-stats .stat-pill");
+    if (pills[0]) {
+      pills[0].innerHTML = `<strong>${enabled.length}</strong> מבחן${enabled.length === 1 ? "" : "ים"}`;
+    }
+    const kbd = document.querySelector("#screen-landing .kbd-hint");
+    if (kbd && enabled.length === 1) {
+      kbd.innerHTML = `מקלדת: <kbd>1</kbd> התחל · <kbd>Enter</kbd> המשך אם יש`;
+    }
 
     updateSoundUI();
     updateLandingResume();

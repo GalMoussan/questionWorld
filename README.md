@@ -1,13 +1,19 @@
-# Psychology Quiz Master
+# Quiz Master
 
 Interactive, dark-themed, ADHD-friendly quiz app for cramming academic sim exams (Hebrew).
 
-**Two quizzes on the start menu:**
+**Live quiz on the start menu:**
 
-| Quiz | Questions | Sheet (דף עזר) |
-|------|-----------|----------------|
-| **Psychology** | 50 | Yes — remembrance sheet with highlights |
-| **SHESAIM** | 28 | No — explanations only |
+| Quiz | Questions | Source material |
+|------|-----------|-----------------|
+| **לוגיקה ב - פול פאוור** | 31 (+ append more) | 11 תמסירים with yellow highlights after each answer |
+
+**Disabled (still in repo, re-enable via `enabled: true` in `app.js`):**
+
+| Quiz | Questions | Sheet |
+|------|-----------|-------|
+| Psychology | 50 | Remembrance sheet |
+| SHESAIM | 28 | Explanations only |
 
 Space game-show vibes + real learning analytics. Built to run **locally in the browser** with no build step.
 
@@ -22,7 +28,31 @@ open index.html
 # or: python3 -m http.server 8765  →  http://localhost:8765
 ```
 
-3. Pick a quiz card: **Psychology** or **SHESAIM**. Optional: resume from localStorage if you refresh mid-run.
+3. Open **לוגיקה ב - פול פאוור**. Optional: resume from localStorage if you refresh mid-run.
+
+### Append more Logic-B questions (JSON)
+
+```bash
+# your file = array of { id, topic, question, options, correct, explanation, sheetRef? }
+# Merge also anti-pattern rebalances A/B/C/D (same engine as psychology).
+node tools/merge-logicb-questions.mjs path/to/extra-50.json
+
+# Optional: rebalance only (no merge)
+node tools/rebuild-logicb-questions.mjs
+
+# if sheetRef is set, add ANCHORS in tools/build-logicb-highlights.py then:
+python3 tools/build-logicb-highlights.py
+```
+
+**Answer shuffle:** bank letters are balanced offline; every new run also re-shuffles options in the browser so correct answers are not mostly ב/ג.
+
+`sheetRef` for Logic-B:
+
+```json
+{ "doc": 3, "page": 1, "section": "מופע חופשי", "hint": "Rabz" }
+```
+
+`doc` = תמסיר number (1–11). See `questions-logicb.append.example.json`.
 
 ## Deploy to Vercel (mobile)
 
