@@ -497,10 +497,14 @@ body {
 }
 
 .question-text {
-  font-size: clamp(1.35rem, 2.8vw, 1.7rem);
+  font-size: clamp(1.2rem, 2.5vw, 1.55rem);
   font-weight: 700;
-  line-height: 1.45;
+  line-height: 1.55;
   letter-spacing: 0.01em;
+  /* Honor \n in question text (מילון: / entries / prompt on separate lines) */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .answers {
@@ -765,6 +769,8 @@ body {
   font-size: 1.05rem;
   line-height: 1.65;
   color: var(--star);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* Remembrance sheet (דף עזר) locator + visual highlight */
