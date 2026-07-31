@@ -107,7 +107,64 @@
     layouts: {},
     /** debug/analytics: correct-letter curve for this session */
     answerCurve: [],
+    /** Player display name for scoreboard (set before new run) */
+    playerName: "",
+    /** Pending quiz id while name modal is open */
+    pendingQuizId: null,
+    /** Prevent double-writing the same finished run to scoreboard */
+    scoreboardLogged: false,
   };
+
+  // ── Scoreboard (local to this browser / device) ────────
+  const SCOREBOARD_KEY = "quizScoreboard_v1";
+  const SCORE_TIERS = [
+    { min: 0,  max: 39, label: "Need practice", tier: 0 },
+    { min: 40, max: 59, label: "Good", tier: 1 },
+    { min: 60, max: 74, label: "Better than usual", tier: 2 },
+    { min: 75, max: 89, label: "Incredible", tier: 3 },
+    { min: 90, max: 100, label: "WTF - born for this", tier: 4 },
+  ];
+
+  function scoreLabelFromMastery(pct) {
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    for (const t of SCORE_TIERS) {
+      if (p >= t.min && p <= t.max) return t;
+    }
+    return SCORE_TIERS[0];
+  }
+
+  function loadScoreboard() {
+    try {
+      const raw = localStorage.getItem(SCOREBOARD_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveScoreboard(entries) {
+    try {
+      localStorage.setItem(SCOREBOARD_KEY, JSON.stringify(entries.slice(0, 200)));
+    } catch (_) { /* ignore quota */ }
+  }
+
+  function addScoreboardEntry(entry) {
+    const list = loadScoreboard();
+    list.push(entry);
+    // Rank: higher tier first, then mastery, then first-try ratio, then newest
+    list.sort((a, b) => {
+      if ((b.tier ?? 0) !== (a.tier ?? 0)) return (b.tier ?? 0) - (a.tier ?? 0);
+      if ((b.mastery ?? 0) !== (a.mastery ?? 0)) return (b.mastery ?? 0) - (a.mastery ?? 0);
+      const ar = (a.total || 1) ? (a.firstTry || 0) / (a.total || 1) : 0;
+      const br = (b.total || 1) ? (b.firstTry || 0) / (b.total || 1) : 0;
+      if (br !== ar) return br - ar;
+      return (b.at || 0) - (a.at || 0);
+    });
+    saveScoreboard(list);
+    return list;
+  }
 
   // ── DOM ────────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -123,7 +180,22 @@
     quizLogicbBtn: $("#btn-quiz-logicb"),
     resumeBtn: $("#btn-resume"),
     soundBtn: $("#btn-sound"),
+    scoreboardBtn: $("#btn-scoreboard"),
     resetBtn: $("#btn-reset"),
+    nameModal: $("#name-modal"),
+    playerNameInput: $("#player-name-input"),
+    nameModalError: $("#name-modal-error"),
+    btnNameStart: $("#btn-name-start"),
+    btnNameCancel: $("#btn-name-cancel"),
+    scoreboardModal: $("#scoreboard-modal"),
+    scoreboardList: $("#scoreboard-list"),
+    scoreboardEmpty: $("#scoreboard-empty"),
+    btnScoreboardClose: $("#btn-scoreboard-close"),
+    btnScoreboardDone: $("#btn-scoreboard-done"),
+    btnScoreboardClear: $("#btn-scoreboard-clear"),
+    resultsScoreBadge: $("#results-score-badge"),
+    resultsScoreName: $("#results-score-name"),
+    resultsScoreLabel: $("#results-score-label"),
     qCount: $("#q-count"),
     scoreCircle: $("#score-circle"),
     progressFill: $("#progress-fill"),
@@ -193,6 +265,8 @@
         questionOrder: state.questionOrder,
         layouts: state.layouts,
         answerCurve: state.answerCurve,
+        playerName: state.playerName || "",
+        scoreboardLogged: !!state.scoreboardLogged,
         savedAt: Date.now(),
       };
       localStorage.setItem(storageKey(state.quizId), JSON.stringify(payload));
@@ -806,6 +880,110 @@
     return rec;
   }
 
+  function openNameModal(quizId) {
+    state.pendingQuizId = quizId;
+    if (!els.nameModal) {
+      // Fallback if markup missing
+      const name = (window.prompt("איך קוראים לך?", state.playerName || "") || "").trim();
+      if (name.length >= 2) {
+        state.playerName = name.slice(0, 32);
+        startQuiz(quizId, false);
+      }
+      return;
+    }
+    els.nameModal.hidden = false;
+    if (els.nameModalError) els.nameModalError.hidden = true;
+    if (els.playerNameInput) {
+      els.playerNameInput.value = state.playerName || "";
+      requestAnimationFrame(() => els.playerNameInput.focus());
+    }
+  }
+
+  function closeNameModal() {
+    if (els.nameModal) els.nameModal.hidden = true;
+    state.pendingQuizId = null;
+  }
+
+  function confirmNameAndStart() {
+    const raw = (els.playerNameInput?.value || "").trim().replace(/\s+/g, " ");
+    if (raw.length < 2) {
+      if (els.nameModalError) els.nameModalError.hidden = false;
+      els.playerNameInput?.focus();
+      return;
+    }
+    const quizId = state.pendingQuizId;
+    state.playerName = raw.slice(0, 32);
+    closeNameModal();
+    if (quizId) startQuiz(quizId, false);
+  }
+
+  function openScoreboard() {
+    if (!els.scoreboardModal) return;
+    renderScoreboard();
+    els.scoreboardModal.hidden = false;
+  }
+
+  function closeScoreboard() {
+    if (els.scoreboardModal) els.scoreboardModal.hidden = true;
+  }
+
+  function renderScoreboard() {
+    const list = loadScoreboard();
+    if (!els.scoreboardList) return;
+    if (!list.length) {
+      els.scoreboardList.innerHTML = "";
+      if (els.scoreboardEmpty) els.scoreboardEmpty.hidden = false;
+      return;
+    }
+    if (els.scoreboardEmpty) els.scoreboardEmpty.hidden = true;
+    els.scoreboardList.innerHTML = list
+      .map((e, i) => {
+        const rank = i + 1;
+        const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : String(rank);
+        const when = e.at
+          ? new Date(e.at).toLocaleDateString("he-IL", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
+        const quizLabel =
+          (QUIZ_CATALOG[e.quizId] && QUIZ_CATALOG[e.quizId].shortLabel) ||
+          e.quizId ||
+          "quiz";
+        return `
+        <li class="rank-${Math.min(rank, 3)}">
+          <span class="sb-rank" aria-hidden="true">${medal}</span>
+          <div class="sb-body">
+            <div class="sb-name">${escapeHtml(e.name || "—")}</div>
+            <div class="sb-meta ltr">${e.mastery ?? "—"}% · ${e.firstTry ?? 0}/${e.total ?? 0} · ${escapeHtml(quizLabel)}${when ? " · " + when : ""}</div>
+          </div>
+          <span class="sb-label tier-${e.tier ?? 0}">${escapeHtml(e.label || "—")}</span>
+        </li>`;
+      })
+      .join("");
+  }
+
+  function logScoreboardIfNeeded(analytics) {
+    if (state.scoreboardLogged) return null;
+    const name = (state.playerName || "").trim();
+    if (!name) return null;
+    const tierInfo = scoreLabelFromMastery(analytics.overallMastery);
+    addScoreboardEntry({
+      name,
+      label: tierInfo.label,
+      tier: tierInfo.tier,
+      mastery: analytics.overallMastery,
+      firstTry: analytics.firstTryCount,
+      total: analytics.totalAnswered,
+      quizId: state.quizId,
+      at: Date.now(),
+    });
+    state.scoreboardLogged = true;
+    return tierInfo;
+  }
+
   function startQuiz(quizId, fromResume = false) {
     ensureAudio();
     if (!fromResume) {
@@ -817,6 +995,7 @@
       state.answers = [];
       state.lockedBlocks = 0;
       state.startedAt = Date.now();
+      state.scoreboardLogged = false;
       // Brand-new anti-pattern curve + shuffled question order every run
       // Correct text is placed on curve letters — bank A/B/C/D is ignored.
       const session = generateSessionLayouts();
@@ -848,6 +1027,8 @@
         state.questionOrder = p.questionOrder;
         state.layouts = p.layouts;
         state.answerCurve = p.answerCurve || [];
+        state.playerName = p.playerName || state.playerName || "";
+        state.scoreboardLogged = !!p.scoreboardLogged;
         for (let i = 0; i < state.lockedBlocks; i++) {
           const free = blockNodes.filter((b) => !b.classList.contains("locked"));
           if (!free.length) break;
@@ -862,6 +1043,7 @@
         state.index = 0;
         state.score = 0;
         state.answers = [];
+        state.scoreboardLogged = false;
       }
     }
     // Prefetch sheet highlights only for quizzes that use the דף עזר
@@ -1671,8 +1853,10 @@
   function finishQuiz() {
     showScreen("results");
     els.progressFill.style.width = "100%";
-    clearProgress(); // completed — no resume needed
     const A = computeAnalytics();
+    logScoreboardIfNeeded(A);
+    // Completed run — drop mid-quiz resume payload (scoreboard lives separately)
+    if (state.quizId) clearProgress(state.quizId);
     renderResults(A);
   }
 
@@ -1698,6 +1882,17 @@
         : "יש תוכנית — נמשיך מהחלש";
     $("#results-sub").textContent =
       `${A.firstTryCount}/${A.totalAnswered} נכונות בניסיון ראשון · רצף מקסימלי: ${A.maxStreak}`;
+
+    // Scoreboard badge on results
+    const name = (state.playerName || "").trim();
+    const tierInfo = scoreLabelFromMastery(A.overallMastery);
+    if (els.resultsScoreBadge && name) {
+      els.resultsScoreBadge.hidden = false;
+      if (els.resultsScoreName) els.resultsScoreName.textContent = name;
+      if (els.resultsScoreLabel) els.resultsScoreLabel.textContent = tierInfo.label;
+    } else if (els.resultsScoreBadge) {
+      els.resultsScoreBadge.hidden = true;
+    }
 
     // Category cards
     const setCat = (sel, list, totalTopics) => {
@@ -1979,9 +2174,25 @@
       return;
     }
 
+    // Modals steal keyboard first
+    if (els.nameModal && !els.nameModal.hidden) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeNameModal();
+      }
+      return; // let input handle Enter
+    }
+    if (els.scoreboardModal && !els.scoreboardModal.hidden) {
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault();
+        closeScoreboard();
+      }
+      return;
+    }
+
     if (state.screen === "landing") {
       if (e.key === "1" || e.key === "Enter" || e.key === " ") {
-        // Prefer resume; otherwise start the first enabled quiz
+        // Prefer resume; otherwise open name gate for first enabled quiz
         if (e.key === "Enter" || e.key === " ") {
           const resume = findResumableQuiz();
           if (resume) {
@@ -1994,7 +2205,7 @@
         if (first && e.key === "1") {
           e.preventDefault();
           playClick();
-          startQuiz(first.id, false);
+          openNameModal(first.id);
         }
         return;
       }
@@ -2052,13 +2263,13 @@
     initStarfield();
     initKnowledgeBlocks();
 
-    // Landing cards: start enabled quiz by data-quiz
+    // Landing cards: ask for name, then start
     $$(".quiz-card[data-quiz]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-quiz");
         if (!id || !QUIZ_CATALOG[id] || QUIZ_CATALOG[id].enabled === false) return;
         playClick();
-        startQuiz(id, false);
+        openNameModal(id);
       });
     });
     els.resumeBtn?.addEventListener("click", () => {
@@ -2066,6 +2277,54 @@
       const resume = findResumableQuiz();
       if (resume) startQuiz(resume, true);
     });
+
+    // Name modal
+    els.btnNameStart?.addEventListener("click", () => {
+      playClick();
+      confirmNameAndStart();
+    });
+    els.btnNameCancel?.addEventListener("click", () => {
+      playClick();
+      closeNameModal();
+    });
+    els.playerNameInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        confirmNameAndStart();
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeNameModal();
+      }
+    });
+    els.nameModal?.addEventListener("click", (e) => {
+      if (e.target === els.nameModal) closeNameModal();
+    });
+
+    // Scoreboard
+    els.scoreboardBtn?.addEventListener("click", () => {
+      playClick();
+      openScoreboard();
+    });
+    els.btnScoreboardClose?.addEventListener("click", () => {
+      playClick();
+      closeScoreboard();
+    });
+    els.btnScoreboardDone?.addEventListener("click", () => {
+      playClick();
+      closeScoreboard();
+    });
+    els.btnScoreboardClear?.addEventListener("click", () => {
+      if (confirm("לנקות את כל לוח התוצאות במכשיר הזה?")) {
+        saveScoreboard([]);
+        renderScoreboard();
+        playClick();
+      }
+    });
+    els.scoreboardModal?.addEventListener("click", (e) => {
+      if (e.target === els.scoreboardModal) closeScoreboard();
+    });
+
     els.soundBtn.addEventListener("click", () => {
       state.soundOn = !state.soundOn;
       updateSoundUI();

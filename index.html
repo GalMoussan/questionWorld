@@ -27,10 +27,43 @@
     <header class="top-chrome">
       <div class="brand">Quiz Master · לוגיקה ב</div>
       <div class="chrome-actions">
+        <button type="button" id="btn-scoreboard" class="icon-btn" title="לוח תוצאות" aria-label="פתח לוח תוצאות">🏆</button>
         <button type="button" id="btn-sound" class="icon-btn active" title="צלילים" aria-label="החלף צלילים">🔊</button>
         <button type="button" id="btn-reset" class="icon-btn" title="איפוס" aria-label="איפוס התקדמות">↺</button>
       </div>
     </header>
+
+    <!-- Name gate before starting a new quiz -->
+    <div id="name-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+      <div class="modal-card">
+        <h2 id="name-modal-title">איך קוראים לך?</h2>
+        <p class="modal-sub">השם יופיע בלוח התוצאות עם הדירוג שלך בסיום.</p>
+        <label class="modal-label" for="player-name-input">שם</label>
+        <input id="player-name-input" class="modal-input" type="text" maxlength="32" autocomplete="nickname" placeholder="למשל: נועה" dir="rtl" />
+        <p id="name-modal-error" class="modal-error" hidden>צריך שם (לפחות 2 תווים)</p>
+        <div class="modal-actions">
+          <button type="button" id="btn-name-start" class="btn btn-primary">🚀 יאללה, מתחילים</button>
+          <button type="button" id="btn-name-cancel" class="btn btn-ghost">ביטול</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scoreboard -->
+    <div id="scoreboard-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="scoreboard-title">
+      <div class="modal-card modal-card-wide">
+        <div class="modal-card-head">
+          <h2 id="scoreboard-title">🏆 Quiz Scoreboard</h2>
+          <button type="button" id="btn-scoreboard-close" class="icon-btn" aria-label="סגור">✕</button>
+        </div>
+        <p class="modal-sub">דירוגים לפי תוצאה במבחן · נשמר במכשיר הזה</p>
+        <ol id="scoreboard-list" class="scoreboard-list" aria-live="polite"></ol>
+        <p id="scoreboard-empty" class="empty-state" hidden>עדיין אין תוצאות — תהיו הראשונים ⚡</p>
+        <div class="modal-actions">
+          <button type="button" id="btn-scoreboard-clear" class="btn btn-secondary">נקה לוח</button>
+          <button type="button" id="btn-scoreboard-done" class="btn btn-primary">סגור</button>
+        </div>
+      </div>
+    </div>
 
     <!-- LANDING -->
     <section id="screen-landing" class="screen active" aria-label="מסך פתיחה">
@@ -205,6 +238,10 @@
         </div>
         <h2 id="results-title">You mastered X%!</h2>
         <p class="sub" id="results-sub"></p>
+        <div id="results-score-badge" class="results-score-badge" hidden>
+          <span class="results-score-name" id="results-score-name"></span>
+          <span class="results-score-label" id="results-score-label"></span>
+        </div>
       </div>
 
       <div class="category-cards">
