@@ -67,6 +67,16 @@
       },
       exportName: "study-plan-logicb.md",
     },
+    sociology: {
+      id: "sociology",
+      title: "מבוא לסוציולוגיה של החינוך",
+      shortLabel: "סוציולוגיה של החינוך",
+      enabled: true,
+      questions:
+        typeof SOCIOLOGY_QUESTIONS !== "undefined" ? SOCIOLOGY_QUESTIONS : [],
+      hasSheet: false,
+      exportName: "study-plan-sociology.md",
+    },
   };
 
   function enabledQuizzes() {
@@ -1828,6 +1838,32 @@
       "פונקציה (סכום)": [
         "פונקציה דו-מקומית: f(x,y) כתוך מונח יחידאי.",
       ],
+      // סוציולוגיה של החינוך
+      "דורקהיים ומבוא לסוציולוגיה של החינוך": [
+        "עובדות חברתיות: חיצוניות לפרט + כפייה.",
+        "טיפולוגיית התאבדות: אגואיסטית / אלטרואיסטית / אנומית / פטליסטית.",
+        "דמיון סוציולוגי (מילס): Troubles ↔ Issues.",
+      ],
+      "פרדיגמות סוציולוגיות בחינוך": [
+        "פונקציונליזם מול קונפליקט: הסכמה מול מאבק ושעתוק.",
+        "AGIL של פרסונס; פונקציות גלויות/סמויות (מרטון).",
+        "אינטראקציה סימבולית = מיקרו; וובר = מעמד/עוצמה/סטטוס.",
+      ],
+      "תרבות, אדם ומבנה חברתי": [
+        "Mores מול Folkways; אתנוצנטריות מול יחסיות תרבותית.",
+        "סטטוס שיוכי מול הישגי; Role Conflict מול Role Strain.",
+        "הגמוניה (גראמשי) והיפותזת ספיר-וורף.",
+      ],
+      "חיברות וכינון זהות": [
+        "מיד: I / Me, Play / Game, האחר המוכלל.",
+        "קולי: האני במראה; סוכן חיברות ראשוני = משפחה.",
+        "גיליגאן מול קוהלברג: Care vs Justice.",
+      ],
+      "אי-שוויון וריבוד חברתי": [
+        "דיוויס ומור מול בורדייה (הון תרבותי, אלימות סימבולית).",
+        "ארבעת עקרונות הריבוד; ניעות אנכית בין-דורית.",
+        "ליברליזם: חופש מ… / תחרות / אי-התערבות.",
+      ],
     };
 
     return weakTopics.slice(0, 5).map((t, i) => ({
@@ -2201,11 +2237,16 @@
             return;
           }
         }
-        const first = enabledQuizzes()[0];
-        if (first && e.key === "1") {
+        const enabled = enabledQuizzes();
+        if (e.key === "1" && enabled[0]) {
           e.preventDefault();
           playClick();
-          openNameModal(first.id);
+          openNameModal(enabled[0].id);
+        }
+        if (e.key === "2" && enabled[1]) {
+          e.preventDefault();
+          playClick();
+          openNameModal(enabled[1].id);
         }
         return;
       }
@@ -2382,6 +2423,7 @@
     const elPsychQ = $("#stat-psych-q");
     const elShesaimQ = $("#stat-shesaim-q");
     const elLogicbQ = $("#stat-logicb-q");
+    const elSocQ = $("#stat-sociology-q");
     if (elPsychQ && QUIZ_CATALOG.psychology) {
       elPsychQ.textContent = String(QUIZ_CATALOG.psychology.questions.length);
     }
@@ -2390,6 +2432,9 @@
     }
     if (elLogicbQ && QUIZ_CATALOG.logicb) {
       elLogicbQ.textContent = String(QUIZ_CATALOG.logicb.questions.length);
+    }
+    if (elSocQ && QUIZ_CATALOG.sociology) {
+      elSocQ.textContent = String(QUIZ_CATALOG.sociology.questions.length);
     }
 
     // Hide cards for disabled quizzes; show only enabled ones
@@ -2413,8 +2458,12 @@
       pills[0].innerHTML = `<strong>${enabled.length}</strong> מבחן${enabled.length === 1 ? "" : "ים"}`;
     }
     const kbd = document.querySelector("#screen-landing .kbd-hint");
-    if (kbd && enabled.length === 1) {
-      kbd.innerHTML = `מקלדת: <kbd>1</kbd> התחל · <kbd>Enter</kbd> המשך אם יש`;
+    if (kbd) {
+      if (enabled.length === 1) {
+        kbd.innerHTML = `מקלדת: <kbd>1</kbd> התחל · <kbd>Enter</kbd> המשך אם יש`;
+      } else if (enabled.length >= 2) {
+        kbd.innerHTML = `מקלדת: <kbd>1</kbd>–<kbd>${Math.min(enabled.length, 9)}</kbd> בחירת מבחן · <kbd>Enter</kbd> המשך`;
+      }
     }
 
     updateSoundUI();

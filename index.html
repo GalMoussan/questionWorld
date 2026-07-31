@@ -7,8 +7,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="description" content="Quiz Master — לוגיקה ב · פול פאוור · הכנה אינטראקטיבית עם תמסירים מסומנים" />
-  <title>Quiz Master · לוגיקה ב — פול פאוור</title>
+  <meta name="description" content="Quiz Master — לוגיקה ב · סוציולוגיה של החינוך · מבחני סימולציה בעברית" />
+  <title>Quiz Master · מבחני סימולציה</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
@@ -25,7 +25,7 @@
 
   <div id="app">
     <header class="top-chrome">
-      <div class="brand">Quiz Master · לוגיקה ב</div>
+      <div class="brand">Quiz Master</div>
       <div class="chrome-actions">
         <button type="button" id="btn-scoreboard" class="icon-btn" title="לוח תוצאות" aria-label="פתח לוח תוצאות">🏆</button>
         <button type="button" id="btn-sound" class="icon-btn active" title="צלילים" aria-label="החלף צלילים">🔊</button>
@@ -98,6 +98,15 @@
             <span class="quiz-card-badge">11 תמסירים</span>
           </span>
         </button>
+        <button type="button" class="quiz-card quiz-card-alt" id="btn-quiz-sociology" data-quiz="sociology">
+          <span class="quiz-card-icon" aria-hidden="true">🏫</span>
+          <span class="quiz-card-title">מבוא לסוציולוגיה של החינוך</span>
+          <span class="quiz-card-desc">דורקהיים · פרדיגמות · תרבות · חיברות · ריבוד ואי-שוויון בחינוך</span>
+          <span class="quiz-card-meta">
+            <span><strong id="stat-sociology-q">30</strong> שאלות</span>
+            <span class="quiz-card-badge muted">ללא דף עזר</span>
+          </span>
+        </button>
         <!-- Disabled quizzes (kept in DOM for easy re-enable) -->
         <button type="button" class="quiz-card" id="btn-quiz-psychology" data-quiz="psychology" hidden>
           <span class="quiz-card-icon" aria-hidden="true">🧠</span>
@@ -122,11 +131,11 @@
       <button type="button" id="btn-resume" class="resume-btn">▶ המשך</button>
 
       <div class="landing-stats">
-        <div class="stat-pill"><strong>1</strong> מבחן</div>
+        <div class="stat-pill"><strong>2</strong> מבחנים</div>
         <div class="stat-pill"><strong>ADHD</strong>-friendly</div>
         <div class="stat-pill">עברית · RTL</div>
       </div>
-      <p class="kbd-hint">מקלדת: <kbd>1</kbd> התחל · <kbd>1</kbd>–<kbd>4</kbd> תשובות בתוך מבחן</p>
+      <p class="kbd-hint">מקלדת: <kbd>1</kbd>–<kbd>2</kbd> בחירת מבחן · <kbd>1</kbd>–<kbd>4</kbd> תשובות בתוך מבחן</p>
     </section>
 
     <!-- QUESTION -->
@@ -328,6 +337,7 @@
   <script src="questions.js"></script>
   <script src="questions-shesaim.js"></script>
   <script src="questions-logicb.js"></script>
+  <script src="questions-sociology.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
