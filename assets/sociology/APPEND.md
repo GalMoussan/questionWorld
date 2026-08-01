@@ -46,6 +46,17 @@ node tools/rebuild-sociology.mjs
 
 במבחן, אחרי תשובה נכונה מוצג קישור ל-PDF + מספר עמוד + שם הסעיף.
 
+## סימון על דף העזר (highlights)
+אחרי תשובה נכונה האפליקציה מציגה את **האזור המסומן** בדף העזר (צהוב + מסגרת), כמו בלוגיקה/פסיכולוגיה.
+
+```bash
+python3 tools/build-sociology-highlights.py
+```
+
+זה כותב `assets/sociology/sheet/highlights.json` + `page-1.png` / `page-2.png`.
+עמודי העוגן (anchors) לפי `id` נמצאים ב־`tools/build-sociology-highlights.py`.
+כשמוסיפים שאלה — הוסיפו גם anchor עם `find` (ביטוי מהדף), `page`, `col` (1–4).
+
 ## ערבוב תשובות
 - **בבנק:** `rebuild-sociology.mjs` מאזן A/B/C/D ומונע דפוסים קלים.
 - **בזמן ריצה:** `app.js` מערבב שוב את סדר השאלות ואת אות התשובה הנכונה בכל התחלה חדשה.
