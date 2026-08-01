@@ -1,0 +1,21 @@
+{
+  "pdf": "assets/sociology/remembrance-sheet.pdf",
+  "dpi": 144,
+  "pages": {
+    "1": {
+      "width": 841.8897705078125,
+      "height": 595.2755737304688,
+      "imgWidth": 1684,
+      "imgHeight": 1191,
+      "file": "assets/sociology/sheet/page-1.png"
+    },
+    "2": {
+      "width": 841.8897705078125,
+      "height": 595.2755737304688,
+      "imgWidth": 1684,
+      "imgHeight": 1191,
+      "file": "assets/sociology/sheet/page-2.png"
+    }
+  },
+  "highlights": {}
+}

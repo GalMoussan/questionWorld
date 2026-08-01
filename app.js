@@ -74,7 +74,13 @@
       enabled: true,
       questions:
         typeof SOCIOLOGY_QUESTIONS !== "undefined" ? SOCIOLOGY_QUESTIONS : [],
-      hasSheet: false,
+      hasSheet: true,
+      sheet: {
+        kind: "single",
+        pdf: "assets/sociology/remembrance-sheet.pdf",
+        highlightsUrl: "assets/sociology/sheet/highlights.json",
+        pageFile: (page) => `assets/sociology/sheet/page-${page}.png`,
+      },
       exportName: "study-plan-sociology.md",
     },
   };
