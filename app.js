@@ -78,8 +78,9 @@
       sheet: {
         kind: "single",
         pdf: "assets/sociology/remembrance-sheet.pdf",
-        highlightsUrl: "assets/sociology/sheet/highlights.json",
-        pageFile: (page) => `assets/sociology/sheet/page-${page}.png`,
+        // ?v= busts CDN/browser cache (assets/* was previously immutable forever)
+        highlightsUrl: "assets/sociology/sheet/highlights.json?v=2",
+        pageFile: (page) => `assets/sociology/sheet/page-${page}.png?v=2`,
       },
       exportName: "study-plan-sociology.md",
     },
@@ -1215,18 +1216,32 @@
     }
     sheetHighlightsKey = url;
     sheetHighlights = null;
-    sheetHighlightsPromise = fetch(url)
+    // cache: 'no-cache' revalidates so empty/stale highlights.json is not sticky
+    sheetHighlightsPromise = fetch(url, { cache: "no-cache" })
       .then((r) => {
         if (!r.ok) throw new Error("highlights missing: " + url);
         return r.json();
       })
       .then((data) => {
+        const n =
+          data && data.highlights ? Object.keys(data.highlights).length : 0;
+        if (!n) {
+          console.warn(
+            "[QuizMaster] highlights.json loaded but empty:",
+            url
+          );
+        } else if (typeof console !== "undefined" && console.info) {
+          console.info("[QuizMaster] sheet highlights loaded", n, "from", url);
+        }
         sheetHighlights = data;
         return data;
       })
       .catch((err) => {
         console.warn("[QuizMaster] sheet highlights unavailable", err);
         sheetHighlights = { highlights: {}, pages: {} };
+        // allow retry next time
+        sheetHighlightsKey = null;
+        sheetHighlightsPromise = null;
         return sheetHighlights;
       });
     return sheetHighlightsPromise;
@@ -1299,20 +1314,31 @@
       const hl = data.highlights && data.highlights[String(questionId)];
       if (!hl) {
         // Still show title/hint/PDF link even without pixel highlight
+        console.warn(
+          "[QuizMaster] no highlight for question",
+          questionId,
+          "keys=",
+          data.highlights ? Object.keys(data.highlights).length : 0
+        );
         if (els.sheetViewer) els.sheetViewer.hidden = true;
         if (els.sheetCropWrap) els.sheetCropWrap.hidden = true;
         currentHighlight = null;
         return;
       }
       currentHighlight = { ...hl, questionId, section };
-      loadSheetPageImage(hl).then((img) => {
-        currentSheetImg = img;
-        paintSheetHighlight(img, hl);
-      }).catch((err) => {
-        console.warn("[QuizMaster] page image load failed", err);
-        if (els.sheetViewer) els.sheetViewer.hidden = true;
-        if (els.sheetCropWrap) els.sheetCropWrap.hidden = true;
-      });
+      loadSheetPageImage(hl)
+        .then((img) => {
+          if (!img || !img.naturalWidth) {
+            throw new Error("image has zero size");
+          }
+          currentSheetImg = img;
+          paintSheetHighlight(img, hl);
+        })
+        .catch((err) => {
+          console.warn("[QuizMaster] page image load failed", err, hl);
+          if (els.sheetViewer) els.sheetViewer.hidden = true;
+          if (els.sheetCropWrap) els.sheetCropWrap.hidden = true;
+        });
     });
   }
 
