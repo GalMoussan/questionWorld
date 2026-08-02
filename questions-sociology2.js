@@ -507,7 +507,7 @@ const SOCIOLOGY2_QUESTIONS = [
     "correct": "D",
     "sourceId": "אינטראקציה סימבולית · תיוג · נבואה שמגשימה עצמה",
     "sheetRef": {
-      "page": 2,
+      "page": 1,
       "section": "אינטראקציה סימבולית · תיוג · נבואה שמגשימה עצמה"
     },
     "image": "assets/sociology2/exam-media/graph-dropout.png"

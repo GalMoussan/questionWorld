@@ -95,8 +95,8 @@
       sheet: {
         kind: "single",
         pdf: "assets/sociology2/remembrance-sheet.pdf",
-        highlightsUrl: "assets/sociology2/sheet/highlights.json?v=1",
-        pageFile: (page) => `assets/sociology2/sheet/page-${page}.png?v=1`,
+        highlightsUrl: "assets/sociology2/sheet/highlights.json?v=3",
+        pageFile: (page) => `assets/sociology2/sheet/page-${page}.png?v=3`,
       },
       exportName: "study-plan-sociology2.md",
     },
