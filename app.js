@@ -84,6 +84,22 @@
       },
       exportName: "study-plan-sociology.md",
     },
+    sociology2: {
+      id: "sociology2",
+      title: "מבוא לסוציולוגיה - דף 2",
+      shortLabel: "סוציולוגיה · דף 2",
+      enabled: true,
+      questions:
+        typeof SOCIOLOGY2_QUESTIONS !== "undefined" ? SOCIOLOGY2_QUESTIONS : [],
+      hasSheet: true,
+      sheet: {
+        kind: "single",
+        pdf: "assets/sociology2/remembrance-sheet.pdf",
+        highlightsUrl: "assets/sociology2/sheet/highlights.json?v=1",
+        pageFile: (page) => `assets/sociology2/sheet/page-${page}.png?v=1`,
+      },
+      exportName: "study-plan-sociology2.md",
+    },
   };
 
   function enabledQuizzes() {
@@ -813,6 +829,7 @@
       correct: correctSlot,
       originalCorrect: q.correct,
       ...(q.sheetRef ? { sheetRef: q.sheetRef } : {}),
+      ...(q.image ? { image: q.image } : {}),
     };
   }
 
@@ -866,6 +883,9 @@
         correct: layout.correct,
         originalCorrect: q.correct,
         ...(q.sheetRef ? { sheetRef: q.sheetRef } : {}),
+        ...(q.image || layout.image
+          ? { image: q.image || layout.image }
+          : {}),
       };
     }
     // Fallback: emergency layout (should not happen mid-session)
@@ -1083,6 +1103,19 @@
     els.progressFill.style.width = `${(state.index / TOTAL()) * 100}%`;
     els.topicBadge.textContent = `◈ ${q.topic}`;
     els.questionText.textContent = q.question;
+    // Optional graph / figure from the source exam
+    const fig = $("#question-figure");
+    const imgEl = $("#question-image");
+    if (fig && imgEl) {
+      if (q.image) {
+        imgEl.src = q.image;
+        imgEl.alt = "תרשים לשאלה " + q.id;
+        fig.hidden = false;
+      } else {
+        imgEl.removeAttribute("src");
+        fig.hidden = true;
+      }
+    }
     els.focusStreak.textContent = state.streak;
     els.focusFill.style.width = `${Math.min(100, state.streak * 12.5)}%`;
 
@@ -2456,6 +2489,7 @@
     const elShesaimQ = $("#stat-shesaim-q");
     const elLogicbQ = $("#stat-logicb-q");
     const elSocQ = $("#stat-sociology-q");
+    const elSoc2Q = $("#stat-sociology2-q");
     if (elPsychQ && QUIZ_CATALOG.psychology) {
       elPsychQ.textContent = String(QUIZ_CATALOG.psychology.questions.length);
     }
@@ -2467,6 +2501,9 @@
     }
     if (elSocQ && QUIZ_CATALOG.sociology) {
       elSocQ.textContent = String(QUIZ_CATALOG.sociology.questions.length);
+    }
+    if (elSoc2Q && QUIZ_CATALOG.sociology2) {
+      elSoc2Q.textContent = String(QUIZ_CATALOG.sociology2.questions.length);
     }
 
     // Hide cards for disabled quizzes; show only enabled ones

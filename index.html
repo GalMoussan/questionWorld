@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="description" content="Quiz Master — לוגיקה ב · סוציולוגיה של החינוך · מבחני סימולציה בעברית" />
+  <meta name="description" content="Quiz Master — לוגיקה ב · סוציולוגיה של החינוך · מבוא לסוציולוגיה דף 2 · מבחני סימולציה בעברית" />
   <title>Quiz Master · מבחני סימולציה</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -107,6 +107,15 @@
             <span class="quiz-card-badge">דף עזר</span>
           </span>
         </button>
+        <button type="button" class="quiz-card" id="btn-quiz-sociology2" data-quiz="sociology2">
+          <span class="quiz-card-icon" aria-hidden="true">📊</span>
+          <span class="quiz-card-title">מבוא לסוציולוגיה - דף 2</span>
+          <span class="quiz-card-desc">מבחן לדוגמה · 25 אמריקאיות + שאלות עם גרפים · דף היזכרות מורחב</span>
+          <span class="quiz-card-meta">
+            <span><strong id="stat-sociology2-q">29</strong> שאלות</span>
+            <span class="quiz-card-badge">דף עזר</span>
+          </span>
+        </button>
         <!-- Disabled quizzes (kept in DOM for easy re-enable) -->
         <button type="button" class="quiz-card" id="btn-quiz-psychology" data-quiz="psychology" hidden>
           <span class="quiz-card-icon" aria-hidden="true">🧠</span>
@@ -135,7 +144,7 @@
         <div class="stat-pill"><strong>ADHD</strong>-friendly</div>
         <div class="stat-pill">עברית · RTL</div>
       </div>
-      <p class="kbd-hint">מקלדת: <kbd>1</kbd>–<kbd>2</kbd> בחירת מבחן · <kbd>1</kbd>–<kbd>4</kbd> תשובות בתוך מבחן</p>
+      <p class="kbd-hint">מקלדת: <kbd>1</kbd>–<kbd>3</kbd> בחירת מבחן · <kbd>1</kbd>–<kbd>4</kbd> תשובות בתוך מבחן</p>
     </section>
 
     <!-- QUESTION -->
@@ -154,6 +163,9 @@
 
       <div class="question-card">
         <p class="question-text" id="question-text"></p>
+        <figure class="question-figure" id="question-figure" hidden>
+          <img id="question-image" class="question-image" alt="תרשים / גרף מהשאלה" />
+        </figure>
       </div>
 
       <div class="answers" id="answers" role="group" aria-label="אפשרויות תשובה"></div>
@@ -338,6 +350,7 @@
   <script src="questions-shesaim.js"></script>
   <script src="questions-logicb.js"></script>
   <script src="questions-sociology.js"></script>
+  <script src="questions-sociology2.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

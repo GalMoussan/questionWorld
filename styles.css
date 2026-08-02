@@ -507,6 +507,32 @@ body {
   text-align: right;
 }
 
+.question-figure {
+  margin: 0.85rem 0 0;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  background: rgba(255, 255, 255, 0.96);
+  max-height: min(42vh, 360px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.question-figure[hidden] {
+  display: none !important;
+}
+
+.question-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(40vh, 340px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
 .answers {
   display: grid;
   grid-template-columns: 1fr 1fr;
