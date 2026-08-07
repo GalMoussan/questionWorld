@@ -29,239 +29,8 @@ ZOOM = DPI / 72.0
 # find: needles tried in order; until: exclusive end needle on same page.
 # before/after: pad in PDF points around the match block.
 ANCHORS: dict[int, dict] = {
-    # ── תמסיר 1 ──
-    1: {
-        "doc": 1,
-        "page": 1,
-        "find": ["Sentential Logic", "בשפהSL"],
-        "until": "מפתח סימול",
-        "before": 4,
-        "after": 20,
-    },
-    2: {
-        "doc": 1,
-        "page": 1,
-        "find": ["Predicate Logic", "השפה PL"],
-        "before": 30,
-        "after": 18,
-    },
-    3: {
-        "doc": 1,
-        "page": 1,
-        "find": ["מונח יחידאי הוא", "מונחים יחידאיים"],
-        "before": 2,
-        "after": 36,
-    },
-    # ── תמסיר 2 ──
-    4: {
-        "doc": 2,
-        "page": 1,
-        "find": ["אוצר הסימנים של PL", "אוצ ר הסימנים"],
-        "until": "ביטוי ב-",
-        "before": 4,
-        "after": 8,
-    },
-    5: {
-        "doc": 2,
-        "page": 1,
-        "find": ["משתנים יחידאיים", "קבועים יחידאיים"],
-        "before": 2,
-        "after": 28,
-    },
-    6: {
-        "doc": 2,
-        "page": 2,
-        "find": ["נוסחאות אטומיות", "1. כל נוסחה אטומית"],
-        "until": "אופרטור",
-        "before": 2,
-        "after": 40,
-    },
-    # ── תמסיר 3 ──
-    7: {
-        "doc": 3,
-        "page": 1,
-        "find": ["Rabz", "ארבע הנוסחאות"],
-        "until": "יש נוסחאות שלא",
-        "before": 8,
-        "after": 12,
-    },
-    8: {
-        "doc": 3,
-        "page": 1,
-        "find": ["מופע חופשי", "אינה פסוק"],
-        "before": 10,
-        "after": 24,
-    },
-    9: {
-        "doc": 3,
-        "page": 1,
-        "find": ["P(a/x)", "סמן ב-"],
-        "before": 2,
-        "after": 30,
-    },
-    # ── תמסיר 4 ──
-    10: {
-        "doc": 4,
-        "page": 1,
-        "find": ["מישהו מחבב את מירב", "(∃y)Lym & (∃y)∼Lym"],
-        "until": "כל מי שמחבב",
-        "before": 4,
-        "after": 18,
-    },
-    11: {
-        "doc": 4,
-        "page": 1,
-        "find": ["כל מי שמחבב", "(∀w)(Lwm"],
-        "before": 2,
-        "after": 28,
-    },
-    12: {
-        "doc": 4,
-        "page": 1,
-        "find": ["באופן ריק", "אימפליקציה מהצורה"],
-        "before": 20,
-        "after": 24,
-    },
-    # ── תמסיר 5 ──
-    13: {
-        "doc": 5,
-        "page": 1,
-        "find": ["האוחים רואים", "(∀y)(Oy"],
-        "before": 2,
-        "after": 22,
-    },
-    14: {
-        "doc": 5,
-        "page": 1,
-        "find": ["הנמרים והזברות", "(∀x)(Tx → ∼Cx)"],
-        "before": 2,
-        "after": 36,
-    },
-    15: {
-        "doc": 5,
-        "page": 1,
-        "find": ["כל בעל-חיים מחבב", "(∀x)(∀y)Lxy"],
-        "before": 2,
-        "after": 28,
-    },
-    # ── תמסיר 6 ──
-    16: {
-        "doc": 6,
-        "page": 1,
-        "find": ["הדולפינים אינם מחבבים", "(∀y)[Dy → (∀w)"],
-        "before": 2,
-        "after": 28,
-    },
-    17: {
-        "doc": 6,
-        "page": 1,
-        "find": ["כל דבר שכבד מכל גורילה", "(∀w)[(∀y)(Gy"],
-        "before": 2,
-        "after": 36,
-    },
-    18: {
-        "doc": 6,
-        "page": 1,
-        "find": ["כמה נמרים מחבבים", "(∃x)[Tx & (∀y)"],
-        "before": 2,
-        "after": 36,
-    },
-    # ── תמסיר 7 ──
-    19: {
-        "doc": 7,
-        "page": 1,
-        "find": ["עטלפים נגועים בכלבת", "פרדיקט יחיד"],
-        "before": 4,
-        "after": 40,
-    },
-    20: {
-        "doc": 7,
-        "page": 1,
-        "find": ["בעלי חיים נגועים בכלבת הם מסוכנים", "טיעון התקף"],
-        "before": 8,
-        "after": 50,
-    },
-    # ── תמסיר 8 ──
-    21: {
-        "doc": 8,
-        "page": 1,
-        "find": ["מישהו מבין את פרינקיפיה", "משפט-I"],
-        "before": 2,
-        "after": 40,
-    },
-    22: {
-        "doc": 8,
-        "page": 1,
-        "find": ["מישהו מבין את פרינקיפיה מתמטיקה ומישהו", "קוניונקציה של משפטי-I"],
-        "before": 2,
-        "after": 36,
-    },
-    23: {
-        "doc": 8,
-        "page": 1,
-        "find": ["כל מי שקורא את לא רעב", "משפט-A"],
-        "before": 2,
-        "after": 30,
-    },
-    # ── תמסיר 9 ──
-    24: {
-        "doc": 9,
-        "page": 1,
-        "find": ["תיאורים מיידעים", "המצביא הרומי"],
-        "before": 2,
-        "after": 40,
-    },
-    25: {
-        "doc": 9,
-        "page": 1,
-        "find": ["באמצעות פרדיקט הזהות", "y = x"],
-        "before": 8,
-        "after": 40,
-    },
-    # ── תמסיר 10 ──
-    26: {
-        "doc": 10,
-        "page": 1,
-        "find": ["התחביר שלPLE", "פרדיקט הזהות"],
-        "before": 2,
-        "after": 36,
-    },
-    27: {
-        "doc": 10,
-        "page": 1,
-        "find": ["מונחים פשוטים", "מונחים מורכבים"],
-        "before": 2,
-        "after": 36,
-    },
-    28: {
-        "doc": 10,
-        "page": 3,
-        "find": ["פירוש ל- PL", "תחום דיון"],
-        "before": 4,
-        "after": 36,
-    },
-    # ── תמסיר 11 ──
-    29: {
-        "doc": 11,
-        "page": 1,
-        "find": ["פסוקים מכומתים", "פסוק פתוח"],
-        "before": 2,
-        "after": 28,
-    },
-    30: {
-        "doc": 11,
-        "page": 1,
-        "find": ["השמה ל משתנים", "השמה למשתנים"],
-        "before": 2,
-        "after": 36,
-    },
-    31: {
-        "doc": 11,
-        "page": 2,
-        "find": ["תיקון של הה", "] x/ u [", "תיקו נ"],
-        "before": 4,
-        "after": 40,
-    },
+    # Hand-tuned overrides (optional). Prefer sheetRef.lines from the question bank.
+    # Auto anchors + line-based rects are built from questions-logicb.js.
 }
 
 
@@ -342,10 +111,54 @@ def needles_from_sheet_ref(sr: dict) -> list[str]:
     return out or ["תמסיר"]
 
 
-def auto_anchors_from_bank() -> dict[int, dict]:
-    """Fill missing ANCHORS from each question's sheetRef."""
-    import re  # used by needles via module-level? ensure available
 
+def line_number_positions(page: fitz.Page) -> dict[int, float]:
+    """Map printed line numbers on a page to y0 (PDF points)."""
+    mapping: dict[int, float] = {}
+    x_map: dict[int, float] = {}
+    for w in page.get_text("words"):
+        token = (w[4] or "").strip()
+        if not re.fullmatch(r"\d{1,3}", token):
+            continue
+        n = int(token)
+        if not (1 <= n <= 300):
+            continue
+        x0, y0 = float(w[0]), float(w[1])
+        # Prefer leftmost occurrence (margin line numbers)
+        if n not in x_map or x0 < x_map[n]:
+            x_map[n] = x0
+            mapping[n] = y0
+    return mapping
+
+
+def rect_for_lines(page: fitz.Page, lines: list[int], pad_before: float = 4, pad_after: float = 14) -> fitz.Rect | None:
+    """Highlight band covering the given printed line numbers on this page."""
+    if not lines:
+        return None
+    pos = line_number_positions(page)
+    ys = [pos[n] for n in lines if n in pos]
+    if not ys:
+        return None
+    y0 = max(0.0, min(ys) - pad_before)
+    # Approximate line height from consecutive numbers, else ~14pt
+    sorted_pos = sorted(pos.items())
+    gaps = []
+    for i in range(1, len(sorted_pos)):
+        dy = sorted_pos[i][1] - sorted_pos[i - 1][1]
+        if 8 < dy < 28:
+            gaps.append(dy)
+    line_h = (sum(gaps) / len(gaps)) if gaps else 14.0
+    y1 = max(ys) + line_h + pad_after
+    h = page.rect.height
+    w = page.rect.width
+    min_band = max(48.0, h * 0.07)
+    y0 = max(0, min(y0, h - min_band - 8))
+    y1 = max(y0 + min_band, min(y1, h - 8))
+    return fitz.Rect(w * 0.04, y0, w * 0.96, y1)
+
+
+def auto_anchors_from_bank() -> dict[int, dict]:
+    """Build anchors from each question's sheetRef (lines preferred for highlight)."""
     bank = load_questions_bank()
     auto: dict[int, dict] = {}
     for q in bank:
@@ -356,13 +169,17 @@ def auto_anchors_from_bank() -> dict[int, dict]:
         if not sr.get("doc") or not sr.get("page"):
             continue
         find = needles_from_sheet_ref(sr)
-        auto[qid] = {
+        entry: dict = {
             "doc": int(sr["doc"]),
             "page": int(sr["page"]),
             "find": find,
             "before": 6,
             "after": 52,
         }
+        lines = sr.get("lines")
+        if isinstance(lines, list) and lines:
+            entry["lines"] = [int(x) for x in lines]
+        auto[qid] = entry
     return auto
 
 
@@ -430,19 +247,35 @@ def main() -> int:
             print(f"Q{qid}: bad page {page_i}", file=sys.stderr)
             page_i = 1
         page = doc[page_i - 1]
-        rect = rect_for_anchor(page, anchor)
         used_page = page_i
-        # If needle missing on declared page, scan whole תמסיר
+        rect = None
+        lines = anchor.get("lines")
+        if isinstance(lines, list) and lines:
+            rect = rect_for_lines(page, lines)
+            if rect is None:
+                # line numbers may live on another page of the same תמסיר
+                for pno in range(len(doc)):
+                    r = rect_for_lines(doc[pno], lines)
+                    if r is not None:
+                        rect = r
+                        used_page = pno + 1
+                        print(f"Q{qid}: lines relocated tamsir {doc_i} p{page_i}→p{used_page}")
+                        break
         if rect is None:
-            for pno in range(len(doc)):
-                if pno + 1 == page_i:
-                    continue
-                r = rect_for_anchor(doc[pno], anchor)
-                if r is not None:
-                    rect = r
-                    used_page = pno + 1
-                    print(f"Q{qid}: relocated tamsir {doc_i} p{page_i}→p{used_page}")
-                    break
+            page = doc[used_page - 1] if used_page != page_i else page
+            rect = rect_for_anchor(page, anchor)
+            used_page = page_i if rect is not None and used_page == page_i else used_page
+            # If needle missing on declared page, scan whole תמסיר
+            if rect is None:
+                for pno in range(len(doc)):
+                    if pno + 1 == page_i:
+                        continue
+                    r = rect_for_anchor(doc[pno], anchor)
+                    if r is not None:
+                        rect = r
+                        used_page = pno + 1
+                        print(f"Q{qid}: relocated tamsir {doc_i} p{page_i}→p{used_page}")
+                        break
         if rect is None:
             fallback += 1
             print(f"Q{qid}: no match for {anchor['find'][:3]} — content-band fallback", file=sys.stderr)

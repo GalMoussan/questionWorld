@@ -1402,6 +1402,21 @@ body {
 /* LTR for charts / numbers if needed */
 .ltr { direction: ltr; unicode-bidi: embed; }
 
+/* PL / logic formulas: keep quantifier order LTR inside RTL Hebrew
+   e.g. (∀x)(∀y)(Axy → Ayx) — never reversed as (Axy → Ayx)(y∀)(x∀) */
+.formula-ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+  letter-spacing: 0.01em;
+  white-space: pre-wrap;
+  padding: 0 0.12em;
+  border-radius: 4px;
+  background: rgba(120, 180, 255, 0.08);
+}
+
 .empty-state {
   color: var(--muted);
   font-size: 0.95rem;

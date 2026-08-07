@@ -6,7 +6,7 @@ Interactive, dark-themed, ADHD-friendly quiz app for cramming academic sim exams
 
 | Quiz | Questions | Source material |
 |------|-----------|-----------------|
-| **לוגיקה ב - פול פאוור** | 31 (+ append more) | 11 תמסירים with yellow highlights after each answer |
+| **לוגיקה ב - פול פאוור** | 50 (מבחן חזרה 2) | 11 תמסירים with yellow highlights after each answer |
 
 **Disabled (still in repo, re-enable via `enabled: true` in `app.js`):**
 
