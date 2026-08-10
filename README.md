@@ -1,6 +1,8 @@
-# Quiz Master
+# Quiz Realm (Quiz Master)
 
 Interactive, dark-themed, ADHD-friendly quiz app for cramming academic sim exams (Hebrew).
+
+**Twist:** press **Summon the Dragons** — dragons emerge from real UI items (cards, brand, need tiles) and fly across the full screen. Built as a daily ritual that pulls you back: wonder → agency → mastery.
 
 **Live quiz on the start menu:**
 

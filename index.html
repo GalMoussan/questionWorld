@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5" />
-  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="theme-color" content="#07060c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="description" content="Quiz Master — לוגיקה ב · סוציולוגיה של החינוך · מבוא לסוציולוגיה דף 2 · מבחני סימולציה בעברית" />
-  <title>Quiz Master · מבחני סימולציה</title>
+  <meta name="description" content="Quiz Realm — מבחני סימולציה בעברית עם דרקונים, מיקוד, וטקס יומי של למידה" />
+  <title>Quiz Realm · Summon the Dragons</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@600;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 </head>
@@ -20,13 +20,22 @@
   <div class="nebula" aria-hidden="true"></div>
   <div id="knowledge-blocks" aria-hidden="true"></div>
   <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+  <!-- Dragon flight layer — dragons emerge from UI items and fly across the viewport -->
+  <div id="dragon-realm" class="dragon-realm" aria-hidden="true">
+    <div class="dragon-vignette"></div>
+    <div class="dragon-heat-haze"></div>
+    <canvas id="dragon-embers" class="dragon-embers" aria-hidden="true"></canvas>
+    <div id="dragon-stage" class="dragon-stage"></div>
+    <p id="dragon-status" class="dragon-status" role="status" aria-live="polite"></p>
+  </div>
   <div id="screen-flash" class="screen-flash" aria-hidden="true"></div>
   <div id="try-again-toast" class="try-again-toast" role="status">נסה שוב! 💪</div>
 
   <div id="app">
     <header class="top-chrome">
-      <div class="brand">Quiz Master</div>
+      <div class="brand" data-dragon-nest="brand">Quiz Realm</div>
       <div class="chrome-actions">
+        <button type="button" id="btn-summon-chrome" class="icon-btn icon-btn-dragon" title="Summon the Dragons" aria-label="Summon the Dragons">🐉</button>
         <button type="button" id="btn-scoreboard" class="icon-btn" title="לוח תוצאות" aria-label="פתח לוח תוצאות">🏆</button>
         <button type="button" id="btn-sound" class="icon-btn active" title="צלילים" aria-label="החלף צלילים">🔊</button>
         <button type="button" id="btn-reset" class="icon-btn" title="איפוס" aria-label="איפוס התקדמות">↺</button>
@@ -67,13 +76,17 @@
 
     <!-- LANDING -->
     <section id="screen-landing" class="screen active" aria-label="מסך פתיחה">
-      <div class="hero-icon" aria-hidden="true">
+      <div class="hero-icon" data-dragon-nest="hero" aria-hidden="true">
         <!-- Brain + rocket hybrid SVG -->
         <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="g1" x1="0" y1="0" x2="120" y2="120">
               <stop stop-color="#00f0ff"/>
               <stop offset="1" stop-color="#c77dff"/>
+            </linearGradient>
+            <linearGradient id="gFire" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#ff6b35"/>
+              <stop offset="1" stop-color="#ffd60a"/>
             </linearGradient>
           </defs>
           <circle cx="60" cy="60" r="52" stroke="url(#g1)" stroke-width="2" opacity="0.4"/>
@@ -82,14 +95,58 @@
           <path d="M78 28l8-12 4 10 10 2-10 4-2 10-10-14z" fill="#c77dff" opacity="0.9"/>
           <circle cx="42" cy="42" r="3" fill="#00f0ff"/>
           <circle cx="88" cy="72" r="2" fill="#c77dff"/>
+          <!-- tiny dragon silhouette in the crest -->
+          <path d="M28 86c6-2 10-1 14 2 2-4 6-6 10-4-1 4-4 6-8 7 4 2 6 5 5 9-4-2-7-2-10 0-2-4-6-6-11-5 2-3 2-6 0-9z" fill="url(#gFire)" opacity="0.85"/>
         </svg>
       </div>
-      <h1>Quiz<br/>Master</h1>
-      <p class="subtitle">בחרו מבחן סימולציה</p>
-      <p class="tagline">מבחנים אינטראקטיביים · למידה ממוקדת · ADHD-friendly</p>
+      <p class="realm-kicker">a daily ritual for a restless mind</p>
+      <h1>Quiz<br/>Realm</h1>
+      <p class="subtitle">בחרו מבחן — או הזמינו את הדרקונים קודם</p>
+      <p class="tagline">
+        בנוי למה שבאמת מושך אותך לחזור: סקרנות, תחושת כוח, התקדמות שנראית,
+        ושמחה קטנה לפני הגרעון. ADHD-friendly · עברית · RTL
+      </p>
+
+      <!-- Human-nature pull: wonder → agency → reward -->
+      <div class="summon-panel" data-dragon-nest="summon">
+        <button type="button" id="btn-summon-dragons" class="btn-summon" aria-describedby="summon-hint">
+          <span class="btn-summon-glow" aria-hidden="true"></span>
+          <span class="btn-summon-icon" aria-hidden="true">🐉</span>
+          <span class="btn-summon-label">
+            <span class="btn-summon-main">Summon the Dragons</span>
+            <span class="btn-summon-sub">הם פורצים מתוך הכפתורים, הכרטיסים, והמסך</span>
+          </span>
+          <span class="btn-summon-pulse" aria-hidden="true"></span>
+        </button>
+        <p id="summon-hint" class="summon-hint">
+          לחיצה אחת = דרקונים עפים על המחשב. זה לא קישוט — זה טקס שפותח את המוח ללמידה.
+        </p>
+        <div class="summon-meta" aria-live="polite">
+          <span class="stat-pill summon-count-pill">זומנו <strong id="summon-count">0</strong> פעמים</span>
+          <span class="stat-pill">משתנה בכל פעם · variable reward</span>
+        </div>
+      </div>
+
+      <div class="need-grid" aria-label="מה מושך אותך לחזור">
+        <div class="need-card" data-dragon-nest="need-wonder">
+          <span class="need-icon" aria-hidden="true">✨</span>
+          <strong>Wonder</strong>
+          <span>רגע של קסם לפני המבחן — המוח נפתח כשיש סיפור</span>
+        </div>
+        <div class="need-card" data-dragon-nest="need-mastery">
+          <span class="need-icon" aria-hidden="true">🎯</span>
+          <strong>Mastery</strong>
+          <span>התקדמות שנראית, רצפים, ולוח תוצאות אישי</span>
+        </div>
+        <div class="need-card" data-dragon-nest="need-focus">
+          <span class="need-icon" aria-hidden="true">🧠</span>
+          <strong>Focus</strong>
+          <span>מסך אחד, משוב מיידי, בלי רעש מיותר</span>
+        </div>
+      </div>
 
       <div class="quiz-picker" role="group" aria-label="בחירת מבחן">
-        <button type="button" class="quiz-card" id="btn-quiz-logicb" data-quiz="logicb">
+        <button type="button" class="quiz-card" id="btn-quiz-logicb" data-quiz="logicb" data-dragon-nest="quiz-logicb">
           <span class="quiz-card-icon" aria-hidden="true">⚡</span>
           <span class="quiz-card-title">לוגיקה ב - פול פאוור</span>
           <span class="quiz-card-desc">נכון/לא נכון · PL · כמתים · הצרנות · סמנטיקה — 11 תמסירים מסומנים אחרי כל תשובה</span>
@@ -98,7 +155,7 @@
             <span class="quiz-card-badge">11 תמסירים</span>
           </span>
         </button>
-        <button type="button" class="quiz-card quiz-card-alt" id="btn-quiz-sociology" data-quiz="sociology">
+        <button type="button" class="quiz-card quiz-card-alt" id="btn-quiz-sociology" data-quiz="sociology" data-dragon-nest="quiz-sociology">
           <span class="quiz-card-icon" aria-hidden="true">🏫</span>
           <span class="quiz-card-title">מבוא לסוציולוגיה של החינוך</span>
           <span class="quiz-card-desc">חברה · דורקהיים · פרדיגמות · תרבות · חיברות · ריבוד — לפי דף הזיכרון</span>
@@ -107,7 +164,7 @@
             <span class="quiz-card-badge">דף עזר</span>
           </span>
         </button>
-        <button type="button" class="quiz-card" id="btn-quiz-sociology2" data-quiz="sociology2">
+        <button type="button" class="quiz-card" id="btn-quiz-sociology2" data-quiz="sociology2" data-dragon-nest="quiz-sociology2">
           <span class="quiz-card-icon" aria-hidden="true">📊</span>
           <span class="quiz-card-title">מבוא לסוציולוגיה - דף 2</span>
           <span class="quiz-card-desc">מבחן לדוגמה · 25 אמריקאיות + שאלות עם גרפים · דף היזכרות מורחב</span>
@@ -124,8 +181,9 @@
         <div class="stat-pill"><strong>2</strong> מבחנים</div>
         <div class="stat-pill"><strong>ADHD</strong>-friendly</div>
         <div class="stat-pill">עברית · RTL</div>
+        <div class="stat-pill" data-dragon-nest="stat-dragons">🐉 <strong>dragons</strong> live here</div>
       </div>
-      <p class="kbd-hint">מקלדת: <kbd>1</kbd>–<kbd>3</kbd> בחירת מבחן · <kbd>1</kbd>–<kbd>4</kbd> תשובות בתוך מבחן</p>
+      <p class="kbd-hint">מקלדת: <kbd>1</kbd>–<kbd>3</kbd> בחירת מבחן · <kbd>D</kbd> Summon the Dragons · <kbd>1</kbd>–<kbd>4</kbd> תשובות</p>
     </section>
 
     <!-- QUESTION -->
@@ -332,6 +390,7 @@
   <script src="questions-logicb.js"></script>
   <script src="questions-sociology.js"></script>
   <script src="questions-sociology2.js"></script>
+  <script src="dragons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
